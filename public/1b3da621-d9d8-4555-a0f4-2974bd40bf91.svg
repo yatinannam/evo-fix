@@ -1,0 +1,20 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Mask group">
+<mask id="mask0_0_224" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="72" height="72">
+<g id="local_hospital" clip-path="url(#clip0_0_224)">
+<g id="Vector">
+</g>
+<path id="Vector_2" opacity="0.3" d="M15 57H57V15H15V57ZM21 31.5H31.5V21H40.5V31.5H51V40.5H40.5V51H31.5V40.5H21V31.5Z" fill="var(--fill-0, #323232)"/>
+<path id="Vector_3" d="M63 15C63 11.7 60.3 9 57 9H15C11.7 9 9.03 11.7 9.03 15L9 57C9 60.3 11.7 63 15 63H57C60.3 63 63 60.3 63 57V15ZM57 57H15V15H57V57ZM31.5 51H40.5V40.5H51V31.5H40.5V21H31.5V31.5H21V40.5H31.5V51Z" fill="var(--fill-0, #323232)"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_224)">
+<circle id="Ellipse 15" cx="36" cy="36" r="20" fill="var(--fill-0, #DB0004)"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_224">
+<rect width="72" height="72" fill="white"/>
+</clipPath>
+</defs>
+</svg>

@@ -1,0 +1,264 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { createProfileAction } from '@/app/emp-dash/actions';
+import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain } from '@/lib/supabase/types';
+
+type ProfileWithRole = EmpProfile & { emp_roles: Pick<EmpRole, 'name'> };
+type UserDomainWithDomain = EmpUserDomain & { emp_domains: Pick<EmpDomain, 'id' | 'name' | 'slug'> };
+
+interface PeopleClientProps {
+  profiles: ProfileWithRole[];
+  allUserDomains: UserDomainWithDomain[];
+  allRoles: EmpRole[];
+  allDomains: EmpDomain[];
+  isAdminPlus: boolean;
+  isSuperAdmin: boolean;
+}
+
+const ROLE_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  super_admin: { label: 'Super Admin', color: '#dc2626', bg: '#fff1f2', border: '#fecdd3' },
+  admin:       { label: 'Admin',       color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
+  domain_head: { label: 'Domain Head', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  employee:    { label: 'Employee',    color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
+};
+
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+}
+
+export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, isAdminPlus, isSuperAdmin }: PeopleClientProps) {
+  const [search, setSearch] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const filtered = profiles.filter(p =>
+    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    p.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const allowedRoles = isSuperAdmin
+    ? allRoles
+    : allRoles.filter(r => r.name === 'domain_head' || r.name === 'employee');
+
+  function domainsForProfile(profileId: string) {
+    return allUserDomains.filter(ud => ud.profile_id === profileId);
+  }
+
+  function handleCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await createProfileAction(fd);
+      if (result?.error) { setError(result.error); }
+      else { setShowCreate(false); }
+    });
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width:'100%', padding:'10px 14px', borderRadius:'10px',
+    border:'1px solid rgba(0,0,0,0.12)', background:'white',
+    fontSize:'14px', color:'#111', outline:'none',
+    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+  };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div>
+          <h1 style={{ fontSize:'22px', fontWeight:700, color:'#111', letterSpacing:'-0.3px', margin:0 }}>People</h1>
+          <p style={{ fontSize:'14px', color:'#9ca3af', marginTop:'4px' }}>{profiles.length} team member{profiles.length !== 1 ? 's' : ''}</p>
+        </div>
+        {isAdminPlus && (
+          <button onClick={() => setShowCreate(true)} id="invite-member-btn"
+            style={{
+              display:'inline-flex', alignItems:'center', gap:'6px',
+              padding:'10px 20px', borderRadius:'12px',
+              background:'linear-gradient(135deg,#f97316,#f43f5e)',
+              color:'white', fontWeight:600, fontSize:'14px',
+              border:'none', cursor:'pointer',
+              fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+              boxShadow:'0 2px 8px rgba(249,115,22,0.3)',
+              transition:'opacity 0.15s, transform 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity='0.92'; (e.currentTarget as HTMLButtonElement).style.transform='translateY(-1px)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity='1'; (e.currentTarget as HTMLButtonElement).style.transform='translateY(0)'; }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Invite Member
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div style={{ position:'relative' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position:'absolute', left:'14px', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          id="people-search"
+          placeholder="Search by name or email…"
+          style={{
+            width:'100%', padding:'10px 14px 10px 38px', borderRadius:'14px',
+            border:'1px solid rgba(0,0,0,0.08)', background:'rgba(255,255,255,0.6)',
+            fontSize:'14px', color:'#111', outline:'none',
+            fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+            backdropFilter:'blur(8px)',
+          }}
+        />
+      </div>
+
+      {/* Grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
+        {filtered.map(person => {
+          const domains = domainsForProfile(person.id);
+          const ini = getInitials(person.full_name);
+          const rm = ROLE_META[person.emp_roles.name] ?? ROLE_META.employee;
+          return (
+            <div key={person.id} style={{
+              background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)',
+              borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)',
+              padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
+              transition:'box-shadow 0.15s, transform 0.1s',
+              cursor:'default',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'; (e.currentTarget as HTMLDivElement).style.transform='translateY(-2px)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow='0 1px 4px rgba(0,0,0,0.05)'; (e.currentTarget as HTMLDivElement).style.transform='translateY(0)'; }}
+            >
+              <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
+                <div style={{
+                  width:'42px', height:'42px', borderRadius:'12px', flexShrink:0,
+                  background:'linear-gradient(135deg,#ffedd5,#ffe4e6)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:'14px', fontWeight:700, color:'#f97316',
+                }}>
+                  {ini}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'14px', fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.full_name}</div>
+                  <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.email}</div>
+                  <span style={{
+                    display:'inline-block', marginTop:'8px',
+                    fontSize:'10px', fontWeight:600, padding:'2px 8px', borderRadius:'6px',
+                    color:rm.color, background:rm.bg, border:`1px solid ${rm.border}`,
+                  }}>
+                    {rm.label}
+                  </span>
+                </div>
+              </div>
+              {domains.length > 0 && (
+                <div style={{ marginTop:'12px', display:'flex', flexWrap:'wrap', gap:'4px' }}>
+                  {domains.map(ud => (
+                    <span key={ud.domain_id} style={{
+                      fontSize:'10px', padding:'3px 8px', borderRadius:'6px',
+                      background:'#f9fafb', border:'1px solid #e5e7eb', color:'#4b5563',
+                      display:'inline-flex', alignItems:'center', gap:'4px',
+                    }}>
+                      {ud.emp_domains.name}
+                      {ud.role_in_domain === 'head' && (
+                        <span style={{ color:'#f97316', fontWeight:700, fontSize:'9px' }}>HEAD</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div style={{ gridColumn:'1 / -1', textAlign:'center', padding:'48px 0', color:'#9ca3af', fontSize:'14px' }}>No people match your search.</div>
+        )}
+      </div>
+
+      {/* Create profile modal */}
+      {showCreate && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:50,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
+          padding:'16px',
+        }}>
+          <div style={{
+            width:'100%', maxWidth:'440px',
+            background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
+            borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
+            border:'1px solid rgba(255,255,255,0.7)',
+            padding:'28px',
+            fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+          }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'24px' }}>
+              <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>Invite Team Member</h2>
+              <button onClick={() => { setShowCreate(false); setError(null); }}
+                style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', transition:'background 0.12s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.05)'}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+              <div>
+                <label htmlFor="invite-name" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Full Name</label>
+                <input id="invite-name" name="full_name" required style={inputStyle} />
+              </div>
+              <div>
+                <label htmlFor="invite-email" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Email</label>
+                <input id="invite-email" name="email" type="email" required style={inputStyle} />
+              </div>
+              <div>
+                <label htmlFor="invite-password" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Temporary Password</label>
+                <input id="invite-password" name="password" type="password" required minLength={8} style={inputStyle} />
+              </div>
+              <div>
+                <label htmlFor="invite-role" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Role</label>
+                <select id="invite-role" name="role_id" required style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
+                  {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
+                </select>
+              </div>
+
+              {error && <div role="alert" style={{ padding:'10px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>{error}</div>}
+
+              <div style={{ display:'flex', gap:'12px', marginTop:'8px' }}>
+                <button type="button" onClick={() => setShowCreate(false)}
+                  style={{
+                    flex:1, padding:'10px', borderRadius:'12px',
+                    border:'1px solid rgba(0,0,0,0.1)', background:'transparent',
+                    fontSize:'14px', color:'#6b7280', cursor:'pointer',
+                    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                    transition:'background 0.12s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.03)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}
+                >Cancel</button>
+                <button type="submit" disabled={isPending} id="confirm-invite-btn"
+                  style={{
+                    flex:1, padding:'10px', borderRadius:'12px',
+                    background:'linear-gradient(135deg,#f97316,#f43f5e)',
+                    color:'white', fontWeight:600, fontSize:'14px',
+                    border:'none', cursor:'pointer',
+                    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
+                    opacity: isPending ? 0.6 : 1,
+                  }}
+                >
+                  {isPending ? (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation:'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Inviting…</>
+                  ) : (
+                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Invite</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { to { transform:rotate(360deg); } }`}</style>
+    </div>
+  );
+}

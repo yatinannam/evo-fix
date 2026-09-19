@@ -1,0 +1,268 @@
+.card {
+  position: relative;
+  border-radius: 26px;
+  padding: 22px 24px 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ----- LEFT (EvoDoc dark) ----- */
+.cardLeft {
+  background: linear-gradient(165deg, #141400 0%, #0d0d0d 60%, #0a0a0a 100%);
+  border: 1px solid rgba(225,255,0,0.18);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(225,255,0,0.06);
+}
+
+/* Shiny glass gloss overlay */
+.cardLeft::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(225,255,0,0.02) 45%,
+    rgba(225,255,0,0.06) 50%,
+    transparent 55%
+  );
+  transform: rotate(15deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Illustration ── */
+.illo {
+  position: absolute;
+  bottom: 20px;
+  right: -55px;
+  width: 280px;
+  height: 280px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.illoSvg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 10px rgba(225,255,0,0.2));
+}
+
+/* ── Stethoscope stroke ── */
+.steth {
+  fill: none;
+  stroke: #e1ff00;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4px;
+}
+
+/* ── Card text ── */
+.cardTitle {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 38px;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.cardTitle span {
+  display: inline-block;
+}
+
+.a {
+  color: #ffffff;
+}
+
+.b {
+  color: #e1ff00;
+  font-style: italic;
+}
+
+.cardSub {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  max-width: 290px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
+  color: #e8efee;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 2;
+  list-style: none;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #eef4f3;
+  cursor: pointer;
+}
+
+/* glass icon chip */
+.glassIcon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.glassIcon svg {
+  stroke: #e1ff00;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke-width: 1.7;
+}
+
+/* shimmer sweep on hover */
+.glassIcon::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(225,255,0,0.25), transparent);
+  transition: left 0.6s ease;
+}
+
+.feature:hover .glassIcon::after {
+  left: 130%;
+}
+
+/* ── CTA ── */
+.cardCta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  text-decoration: none;
+  background: #e1ff00;
+  color: #0d0d0d;
+  border: 1px solid rgba(225,255,0,0.4);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(225,255,0,0.25);
+  transition: all 0.4s ease;
+}
+
+.cardCta svg {
+  width: 17px;
+  height: 17px;
+}
+
+.cardCta:hover {
+  transform: translateY(-2px);
+  background: #d6f303;
+  box-shadow: 0 10px 30px rgba(225,255,0,0.35);
+}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════ */
+
+/* Tablet portrait */
+@media (max-width: 899px) {
+  .card { border-radius: 20px; padding: 24px 24px 22px; }
+  .illo { width: 200px; height: 200px; right: -30px; bottom: 10px; }
+  .cardTitle { font-size: 32px; }
+  .cardSub { font-size: 14px; }
+}
+
+/* Mobile */
+@media (max-width: 599px) {
+  .card {
+    border-radius: 22px;
+    padding: 26px 22px 24px;
+    /* card already has overflow:hidden from base, illo clips cleanly */
+  }
+
+  .illo {
+    width: 160px;
+    height: 160px;
+    top: 30px;
+    bottom: auto;
+    right: -10px;
+    opacity: 0.82;
+  }
+
+  .cardTitle {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .cardSub {
+    font-size: 13px;
+    max-width: 65%;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .features {
+    gap: 9px;
+    margin-bottom: 18px;
+    max-width: 72%;
+  }
+
+  .feature { font-size: 13px; }
+
+  .glassIcon {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+
+  .cardCta {
+    font-size: 14px;
+    padding: 13px 18px;
+    margin-top: 16px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .card { padding: 20px 18px; }
+  .illo { width: 130px; height: 130px; opacity: 0.7; }
+  .cardTitle { font-size: 27px; }
+  .cardSub { font-size: 12px; max-width: 60%; }
+}

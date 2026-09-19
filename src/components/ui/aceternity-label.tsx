@@ -1,0 +1,20 @@
+"use client";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+const AcLabel = React.forwardRef<
+  HTMLLabelElement,
+  React.LabelHTMLAttributes<HTMLLabelElement>
+>(({ className, ...props }, ref) => (
+  <label
+    ref={ref}
+    className={cn(
+      "text-sm font-medium text-neutral-300 leading-none",
+      className
+    )}
+    {...props}
+  />
+));
+AcLabel.displayName = "AcLabel";
+
+export { AcLabel };

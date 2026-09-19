@@ -1,0 +1,21 @@
+{
+  "name": "EvoCare Personal Health",
+  "short_name": "EvoCare",
+  "description": "Your personal health companion.",
+  "start_url": "/evocare/dashboard",
+  "display": "standalone",
+  "background_color": "#f7f9fa",
+  "theme_color": "#74d3e0",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

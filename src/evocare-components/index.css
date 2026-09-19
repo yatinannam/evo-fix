@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@theme {
+  --color-evocare: #429ff4;
+  --color-evocare-light: #59a1fc;
+  --color-evocare-cyan: #aff2fb;
+  --color-evocare-cyan-bg: #cbf3f9;
+  --color-surface: #f5f5f7;
+  --color-text-primary: #141414;
+  --color-text-secondary: #6e6e6e;
+  --color-text-muted: #636363;
+  --font-display: "Raleway", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  background: white;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-raleway {
+  font-family: "Raleway", sans-serif;
+}
+
+.font-inter {
+  font-family: "Inter", sans-serif;
+}
+
+/* Interactive overlay — invisible hit targets with hover feedback */
+.site-hotspot {
+  pointer-events: auto;
+  position: absolute;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-radius: inherit;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.site-hotspot:focus-visible {
+  outline: 2px solid #429ff4;
+  outline-offset: 2px;
+}
+
+.site-hotspot--nav:hover {
+  background: rgba(66, 159, 244, 0.08);
+  border-radius: 6px;
+}
+
+.site-hotspot--cta-primary:hover {
+  box-shadow: 0 12px 28px rgba(66, 159, 244, 0.45);
+  background: rgba(66, 159, 244, 0.12);
+  border-radius: 13px;
+}
+
+.site-hotspot--cta-secondary:hover {
+  box-shadow: 0 12px 28px rgba(66, 159, 244, 0.25);
+  background: rgba(66, 159, 244, 0.06);
+  border-radius: 13px;
+}
+
+.site-hotspot--cta-cyan:hover {
+  background: rgba(175, 242, 251, 0.6);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+
+.site-hotspot--card:hover {
+  background: rgba(175, 242, 251, 0.35);
+  box-shadow: 0 4px 16px rgba(66, 159, 244, 0.2);
+  border-radius: 8px;
+}
+
+.site-hotspot--link:hover {
+  background: rgba(66, 159, 244, 0.1);
+  border-radius: 4px;
+}
+
+.site-hotspot--plain:hover {
+  background: transparent;
+}
+
+/* Footer links — hover on the visible text, not overlay hotspots */
+.footer-interactive-link {
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background-color 0.2s ease;
+  z-index: 10;
+}
+
+.footer-interactive-link:hover {
+  background: rgba(66, 159, 244, 0.1);
+  border-radius: 4px;
+}
+
+.footer-interactive-icon {
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s ease;
+  z-index: 10;
+}
+
+.footer-interactive-icon:hover {
+  background: rgba(66, 159, 244, 0.1);
+}
+
+/* Launching Next cards — hover glow on card surface when group is hovered */
+.launching-next-card {
+  isolation: isolate;
+  transition: box-shadow 0.2s ease;
+}
+
+.launching-next-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(175, 242, 251, 0.35);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: -1;
+}
+
+.launching-next-card-group:hover .launching-next-card {
+  box-shadow: 0 4px 16px rgba(66, 159, 244, 0.2);
+}
+
+.launching-next-card-group:hover .launching-next-card::after {
+  opacity: 1;
+}
+
+.site-input {
+  pointer-events: auto;
+  border-radius: 5px;
+  border: 1px solid #429ff4;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0 14px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #141414;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.site-input::placeholder {
+  color: rgba(67, 67, 67, 0.45);
+}
+
+.site-input:focus {
+  border-color: #3a8fe0;
+  box-shadow: 0 0 0 3px rgba(66, 159, 244, 0.2);
+  background: white;
+}
+
+.site-submit {
+  pointer-events: auto;
+  border: none;
+  border-radius: 5px;
+  background: #429ff4;
+  color: white;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.site-submit:hover:not(:disabled) {
+  background: #3a8fe0;
+  box-shadow: 0 6px 20px rgba(66, 159, 244, 0.35);
+}
+
+.site-submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.site-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}

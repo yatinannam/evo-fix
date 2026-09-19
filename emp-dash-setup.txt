@@ -1,0 +1,208 @@
+===============================================================
+  EMP-DASH SETUP GUIDE
+  New Supabase Project + Vercel Environment Variables
+===============================================================
+
+────────────────────────────────────────────────────────────
+STEP 1 — CREATE A NEW SUPABASE PROJECT
+────────────────────────────────────────────────────────────
+
+1. Go to https://supabase.com/dashboard
+2. Click "New project"
+3. Name it something like "evodoc-emp-dash" (keep it separate from
+   your existing project which powers the main site)
+4. Choose a strong database password and save it somewhere safe
+5. Pick a region close to your users (e.g. Southeast Asia / Mumbai)
+6. Wait for the project to finish spinning up (~2 min)
+
+
+────────────────────────────────────────────────────────────
+STEP 2 — GRAB YOUR PROJECT CREDENTIALS
+────────────────────────────────────────────────────────────
+
+In Supabase Dashboard → Project Settings → API:
+
+  • Project URL        →  NEXT_PUBLIC_EMPDASH_SUPABASE_URL
+  • anon / public key  →  NEXT_PUBLIC_EMPDASH_SUPABASE_ANON_KEY
+  • service_role key   →  EMPDASH_SUPABASE_SERVICE_ROLE_KEY
+    (keep this one secret — never expose it client-side)
+
+
+────────────────────────────────────────────────────────────
+STEP 3 — RUN THE DATABASE MIGRATION
+────────────────────────────────────────────────────────────
+
+1. In Supabase Dashboard → SQL Editor → "New query"
+2. Open the file:
+     src/app/emp-dash/migration.sql
+   (it's in your repo — copy the entire contents)
+3. Paste into the SQL Editor and click "Run"
+
+This creates ALL of the following:
+  • Tables: emp_roles, emp_profiles, emp_domains,
+            emp_domain_admin_map, emp_user_domains,
+            emp_domain_field_templates,
+            emp_tasks, emp_task_assignees, emp_task_status_history,
+            emp_files, emp_file_versions,
+            emp_channels, emp_channel_members,
+            emp_messages, emp_task_comments
+  • Seed data: 4 roles (super_admin, admin, domain_head, employee)
+               7 domains (Outreach, Social Media, Backend Dev, etc.)
+               Default field templates for each domain
+  • All RLS policies (auth-gated on every table)
+  • Helper functions used by RLS
+
+NOTE: If you see "type already exists" errors, you ran the migration
+twice. Drop and recreate the project, or drop the conflicting types
+before re-running.
+
+
+────────────────────────────────────────────────────────────
+STEP 4 — CREATE THE STORAGE BUCKET
+────────────────────────────────────────────────────────────
+
+1. Supabase Dashboard → Storage → "New bucket"
+2. Name:   emp-dash-files
+3. Public: NO  (keep it private)
+4. Click Create
+
+File path convention used by the app:
+  Task attachments:  {domain_slug}/{task_id}/{filename}
+  Domain files:      {domain_slug}/general/{filename}
+
+
+────────────────────────────────────────────────────────────
+STEP 5 — ENABLE REALTIME
+────────────────────────────────────────────────────────────
+
+1. Supabase Dashboard → Database → Replication
+2. Under "Source", enable replication for these tables:
+     ✓ emp_messages
+     ✓ emp_task_status_history
+     ✓ emp_task_comments
+3. Save
+
+
+────────────────────────────────────────────────────────────
+STEP 6 — CREATE THE SUPER ADMIN USER (first user)
+────────────────────────────────────────────────────────────
+
+Since there's no public sign-up, create the first user manually:
+
+Option A — via Supabase Dashboard:
+  1. Authentication → Users → "Invite user"
+  2. Enter the email address
+  3. User gets an email to set their password
+
+Option B — via SQL (after creating the user in Authentication):
+  INSERT INTO emp_profiles (id, full_name, email, role_id)
+  VALUES (
+    '<paste auth.users.id here>',
+    'Raunak Jalan',
+    'raunak@evodoc.in',
+    (SELECT id FROM emp_roles WHERE name = 'super_admin')
+  );
+
+IMPORTANT: The profile row MUST be inserted into emp_profiles with
+the same UUID as the auth.users row, and with the super_admin role.
+Without this, the dashboard will redirect to login even after auth.
+
+
+────────────────────────────────────────────────────────────
+STEP 7 — ADD ENVIRONMENT VARIABLES TO VERCEL
+────────────────────────────────────────────────────────────
+
+Go to: Vercel Dashboard → your project → Settings → Environment Variables
+
+Add ALL THREE for BOTH "Production" and "Preview" environments:
+
+  Variable Name                          Value
+  ─────────────────────────────────────────────────────────────
+  NEXT_PUBLIC_EMPDASH_SUPABASE_URL       https://xxxx.supabase.co
+                                         (your Project URL from Step 2)
+
+  NEXT_PUBLIC_EMPDASH_SUPABASE_ANON_KEY  eyJhbGciOi...
+                                         (anon/public key from Step 2)
+
+  EMPDASH_SUPABASE_SERVICE_ROLE_KEY      eyJhbGciOi...
+                                         (service_role key from Step 2)
+  ─────────────────────────────────────────────────────────────
+
+⚠  DO NOT modify or merge these into the existing:
+     NEXT_PUBLIC_SUPABASE_URL
+     NEXT_PUBLIC_SUPABASE_ANON_KEY
+     SUPABASE_SERVICE_ROLE_KEY
+   Those belong to the main EvoCare/EvoDoc project.
+
+After adding, redeploy: Vercel → Deployments → Redeploy latest.
+
+
+────────────────────────────────────────────────────────────
+STEP 8 — ADD TO LOCAL .env.local (for development)
+────────────────────────────────────────────────────────────
+
+Open (or create):  evo-new/.env.local
+
+Add these three lines below the existing variables:
+
+  NEXT_PUBLIC_EMPDASH_SUPABASE_URL=https://xxxx.supabase.co
+  NEXT_PUBLIC_EMPDASH_SUPABASE_ANON_KEY=eyJhbGciOi...
+  EMPDASH_SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+
+Then restart:  npm run dev
+
+
+────────────────────────────────────────────────────────────
+STEP 9 — VERIFY THE FULL FLOW
+────────────────────────────────────────────────────────────
+
+1. Go to evodoc.in/emp-dash/login  →  sign in as Super Admin
+   → Should land on "My Day" page
+
+2. /emp-dash/people → "Invite Member"
+   → Create a Domain Head with a temp password
+
+3. /emp-dash/admin → "Domain Members" tab
+   → Assign that person to a domain as "head"
+
+4. Sign in as the Domain Head → /emp-dash/tasks → "New Task"
+   → Fill domain-specific fields, assign to an Employee, set deadline
+
+5. Sign in as the Employee → open the task
+   → "Start Working" → "Submit for Review"
+
+6. Sign in as the Domain Head → open the task
+   → "Claim Review" → "Approve & Complete"
+
+7. Task detail page → Activity section shows full status chain ✓
+
+8. /emp-dash/admin → "Audit Log" → all changes visible ✓
+
+
+────────────────────────────────────────────────────────────
+ROUTE MAP
+────────────────────────────────────────────────────────────
+
+  /emp-dash             My Day (tasks + review queue + mentions)
+  /emp-dash/login       Login (no public signup)
+  /emp-dash/tasks       Kanban / List / Calendar task board
+  /emp-dash/tasks/[id]  Task detail + thread + status panel
+  /emp-dash/messages    Realtime DMs + domain channels
+  /emp-dash/people      Team directory + invite (Admin+ only)
+  /emp-dash/admin       Domain mapping + audit log (Admin+ only)
+
+
+────────────────────────────────────────────────────────────
+OPTIONAL — REGENERATE TYPESCRIPT TYPES
+────────────────────────────────────────────────────────────
+
+Once live, replace the hand-written types.ts with auto-generated ones:
+
+  npx supabase gen types typescript \
+    --project-id YOUR_PROJECT_REF \
+    > src/lib/supabase/types.ts
+
+(YOUR_PROJECT_REF is the short ID in your Supabase project URL,
+ e.g. "abcdefghijklmno")
+
+===============================================================

@@ -1,0 +1,127 @@
+/* ─── EmpDash: Reset dark-site globals ─────────────────────────────────────
+   globals.css sets body { background:#0a0a0a; color:#fff } and wipes button
+   styles. This stylesheet, scoped under [data-empdash], corrects all of that
+   so the emp-dash has its own clean light / warm design system.
+─────────────────────────────────────────────────────────────────────────── */
+
+[data-empdash] {
+  --ed-bg:          #faf8f5;
+  --ed-surface:     rgba(255, 255, 255, 0.82);
+  --ed-border:      rgba(0, 0, 0, 0.07);
+  --ed-shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --ed-shadow-md:   0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --ed-shadow-lg:   0 12px 40px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.06);
+  --ed-orange:      #f97316;
+  --ed-rose:        #f43f5e;
+  --ed-grad:        linear-gradient(135deg, #f97316, #f43f5e);
+  --ed-grad-soft:   linear-gradient(135deg, #fff7ed, #fff1f2);
+  --ed-radius:      14px;
+  --ed-font:        'Outfit', 'Inter', system-ui, sans-serif;
+}
+
+/* Override the marketing-site base resets inside emp-dash */
+[data-empdash],
+[data-empdash] body,
+[data-empdash] *:not([class*="bg-"]):not(canvas) {
+  color: unset;
+}
+
+[data-empdash] {
+  background: var(--ed-bg);
+  color: #1a1a1a;
+  font-family: var(--ed-font);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Fix global button reset killing our styled buttons */
+[data-empdash] button {
+  border: initial;
+  background: initial;
+  font-family: var(--ed-font);
+  cursor: pointer;
+}
+
+/* Fix browser stripping input appearance */
+[data-empdash] input,
+[data-empdash] select,
+[data-empdash] textarea {
+  font-family: var(--ed-font);
+  background: white;
+  color: #1a1a1a;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px;
+  padding: 10px 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 14px;
+}
+
+[data-empdash] input:focus,
+[data-empdash] select:focus,
+[data-empdash] textarea:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+/* ─── ED Button System ────────────────────────────────────────────────── */
+[data-empdash] .ed-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--ed-grad);
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ed-font);
+  box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+[data-empdash] .ed-btn-primary:hover   { opacity: 0.92; box-shadow: 0 4px 16px rgba(249,115,22,0.35); transform: translateY(-1px); }
+[data-empdash] .ed-btn-primary:active  { transform: translateY(0); }
+[data-empdash] .ed-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+[data-empdash] .ed-btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px; background: transparent; color: #6b7280;
+  font-weight: 500; font-size: 14px; border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.1); cursor: pointer; font-family: var(--ed-font);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+[data-empdash] .ed-btn-ghost:hover { background: rgba(249,115,22,0.06); border-color: rgba(249,115,22,0.25); color: #f97316; }
+
+/* ─── ED Card ─────────────────────────────────────────────────────────── */
+[data-empdash] .ed-card {
+  background: var(--ed-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ed-border);
+  border-radius: var(--ed-radius);
+  box-shadow: var(--ed-shadow-sm);
+}
+
+/* ─── Scrollbar for main area ─────────────────────────────────────────── */
+[data-empdash] ::-webkit-scrollbar       { width: 6px; height: 6px; }
+[data-empdash] ::-webkit-scrollbar-track { background: transparent; }
+[data-empdash] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 6px; }
+[data-empdash] ::-webkit-scrollbar-thumb:hover { background: rgba(249,115,22,0.35); }
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+@keyframes ed-fade-up {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+[data-empdash] .ed-fade-up { animation: ed-fade-up 0.3s ease both; }
+
+@keyframes ed-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}

@@ -1,0 +1,124 @@
+:root {
+  --rx-ink: #1a1a18;
+}
+
+.eyebrow { color: var(--muted); display: block; font-size: 13.5px; font-weight: 700; letter-spacing: 1.5px; }
+/* ══════════════════════════════════════════════
+    RX CARD — matches components/demo-components/PrescriptionPage.jsx
+    white paper, Georgia serif, black/charcoal ink letterhead
+    ══════════════════════════════════════════════ */
+.rxStage { flex: 0 0 auto; width: min(420px, 90vw); margin: 0 auto; position: relative; }
+.rxPaper {
+  position: relative; z-index: 2; background: #ffffff; border-radius: 5px;
+  overflow: hidden; font-family: Georgia, "Times New Roman", serif; color: #111;
+  box-shadow: 0 30px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+.rx-letterhead {
+  padding: 32px 34px 26px;
+  background: #f4f2ec;
+  border-bottom: 5px solid var(--rx-ink);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.rx-letterhead h2 { color: var(--rx-ink); font-family: "JetBrains Mono", monospace; font-size: clamp(1.5rem, 5vw, 2.1rem); font-weight: 800; line-height: 1; letter-spacing: -0.01em; text-transform: uppercase; margin: 0; }
+.rx-letterhead .role { margin: 10px 0 0; color: #838173; font-size: 11.5px; font-weight: 700; font-family: "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: 0.1em; }
+.rx-contactline { margin-top: 10px; padding-top: 10px; border-top: 1px solid #d8d5c9; }
+.rx-contactline p { margin: 0; color: #6b6960; font-size: 12px; font-family: "Inter", sans-serif; }
+.rx-letterhead .rightcol { text-align: right; flex-shrink: 0; }
+.rx-letterhead .rightcol .lbl { margin: 0; color: #83817f; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-family: "JetBrains Mono", monospace; }
+.rx-letterhead .rightcol .val { margin: 4px 0 0; color: #151511; font-size: 13px; font-weight: 700; font-family: "JetBrains Mono", monospace; }
+
+.rx-infogrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; row-gap: 18px; padding: 26px 34px 8px; }
+.rx-field { padding-bottom: 14px; border-bottom: 1px solid #e2dfd2; }
+.rx-field .flabel { display: block; font-family: "JetBrains Mono", monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #83817f; margin-bottom: 6px; }
+.rx-field .fval { font-family: "Inter", sans-serif; font-size: 14px; font-weight: 700; color: #151511; }
+
+.rx-stats {
+  padding: 14px 28px; background: #f8fafc; border-bottom: 1px solid #e5e7eb;
+  display: flex; flex-wrap: wrap; gap: 18px; font-family: "Inter", sans-serif;
+}
+.rx-stats span.l { font-weight: 700; font-size: 12px; color: #374151; }
+.rx-stats span.v { font-size: 12px; color: #111; }
+
+.rx-pills { padding: 18px 28px; border-bottom: 1px solid #e5e7eb; }
+.rx-pills p { margin: 0 0 10px; font-weight: 700; font-size: 12px; color: #111; font-family: "Inter", sans-serif; }
+.rx-pills .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.rx-pills .pill {
+  font-size: 11.5px; color: var(--rx-ink); background: #f2f0e8; border: 1px solid #d8d5c9;
+  border-radius: 99px; padding: 4px 12px; font-weight: 500; font-family: "Inter", sans-serif;
+  white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: max-content;
+}
+
+.rx-promise { padding: 14px 20px; background: #fafbff; border-bottom: 1px solid #e5e7eb; }
+.rx-promise p.lbl { margin: 0 0 4px; font-weight: 700; font-size: 11px; color: #374151; font-family: "Inter", sans-serif; }
+.rx-promise p.val { margin: 0; font-weight: 800; font-size: 15px; color: #111; }
+
+.rx-block { padding: 22px 28px; border-bottom: 1px solid #e5e7eb; }
+.rx-block-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.rx-block-head .check { font-size: 1.8rem; font-weight: 900; color: var(--rx-ink); line-height: 1; }
+.rx-block-head .title { font-weight: 900; font-size: 13.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #111; font-family: "Inter", sans-serif; }
+
+.rx-item { display: flex; gap: 12px; padding: 12px 0; align-items: flex-start; }
+.rx-item + .rx-item { border-top: 1px solid #f1f5f9; }
+.rx-item .num {
+  width: 22px; height: 22px; border-radius: 50%; background: #eae7dd; color: #1a1a18;
+  font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-family: "Inter", sans-serif;
+}
+.rx-item p.t { margin: 0; font-weight: 700; font-size: 13px; color: #111; font-family: "Inter", sans-serif; }
+.rx-item p.s { margin: 3px 0 0; font-size: 12px; color: #6b7280; font-family: "Inter", sans-serif; line-height: 1.5; }
+
+.rx-list { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
+.rx-list p.lbl { margin: 0 0 8px; font-weight: 700; font-size: 11px; color: #111; font-family: "Inter", sans-serif; }
+.rx-list ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.rx-list li { font-size: 11.5px; color: #374151; font-family: "Inter", sans-serif; }
+
+.rx-sign { padding: 22px 28px 28px; display: flex; justify-content: flex-end; }
+.rx-sign .box { text-align: right; padding-top: 12px; border-top: 2px solid #374151; }
+.rx-sign .box p.name { margin: 0; font-weight: 800; font-size: 14.5px; color: #111; }
+.rx-sign .box p.sub { margin: 3px 0 0; font-size: 11px; color: #6b7280; font-family: "Inter", sans-serif; }
+
+/* ── unified contact Rx card ── */
+.contactRxSection { padding: 40px 24px 20px; }
+.sectionIntro { max-width: 640px; margin: 0 auto 36px; text-align: center; }
+.sectionIntro .eyebrow { display: block; text-align: center; font-size: 15px; letter-spacing: 2.5px; margin: 0; }
+.rxStageWide { width: min(760px, 94vw); margin: 0 auto 90px; }
+
+.rx-actions { display: flex; gap: 12px; padding: 22px 28px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+.rx-action-btn {
+  flex: 1 1 150px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 16px; border-radius: 10px; font-family: "Inter", sans-serif; font-weight: 700;
+  font-size: 13px; text-decoration: none; border: 1.5px solid transparent; transition: transform .15s ease;
+}
+.rx-action-btn:active { transform: scale(0.97); }
+.rx-action-call { background: var(--rx-ink); color: #fff; }
+.rx-action-whatsapp { background: #25D366; color: #04210f; }
+.rx-action-email { background: #f2f0e8; color: var(--rx-ink); border-color: #d8d5c9; }
+
+.rx-social { padding: 22px 28px; }
+.rx-social p.lbl { margin: 0 0 14px; font-weight: 700; font-size: 12px; color: #111; font-family: "Inter", sans-serif; text-transform: uppercase; letter-spacing: 0.06em; }
+.rx-social .row { display: flex; gap: 12px; flex-wrap: wrap; }
+.rx-social a {
+  display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px;
+  border: 1.5px solid #e5e7eb; color: #111; text-decoration: none; font-family: "Inter", sans-serif;
+  font-size: 13px; font-weight: 600; transition: border-color .2s ease, background .2s ease;
+}
+.rx-social a:hover { border-color: var(--rx-ink); background: #f6f4ee; }
+
+.rx-note { padding: 0 28px 22px; }
+.rx-note p { margin: 0; font-size: 11px; color: #9aa0a8; font-family: "Inter", sans-serif; line-height: 1.5; }
+.ph-mark { color: #d1495b; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .contactRxSection { padding: 60px 16px 20px; }
+  .rx-infogrid { grid-template-columns: 1fr; row-gap: 14px; }
+}
+
+@media (max-width: 560px) {
+  .rx-action-btn { flex: 1 1 100%; }
+  .rx-social .row { justify-content: center; }
+}

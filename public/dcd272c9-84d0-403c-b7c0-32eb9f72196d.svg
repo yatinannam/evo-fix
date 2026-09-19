@@ -1,0 +1,20 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 65.3389 65.3389" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Mask group">
+<mask id="mask0_0_142" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="66" height="66">
+<g id="local_hospital" clip-path="url(#clip0_0_142)">
+<g id="Vector">
+</g>
+<path id="Vector_2" opacity="0.3" d="M13.6123 51.7267H51.7267V13.6123H13.6123V51.7267ZM19.0572 28.5858H28.5858V19.0572H36.7532V28.5858H46.2817V36.7532H36.7532V46.2817H28.5858V36.7532H19.0572V28.5858Z" fill="var(--fill-0, #323232)"/>
+<path id="Vector_3" d="M57.1716 13.6123C57.1716 10.6176 54.7214 8.16737 51.7267 8.16737H13.6123C10.6176 8.16737 8.19459 10.6176 8.19459 13.6123L8.16737 51.7267C8.16737 54.7214 10.6176 57.1716 13.6123 57.1716H51.7267C54.7214 57.1716 57.1716 54.7214 57.1716 51.7267V13.6123ZM51.7267 51.7267H13.6123V13.6123H51.7267V51.7267ZM28.5858 46.2817H36.7531V36.7531H46.2817V28.5858H36.7531V19.0572H28.5858V28.5858H19.0572V36.7531H28.5858V46.2817Z" fill="var(--fill-0, #323232)"/>
+</g>
+</mask>
+<g mask="url(#mask0_0_142)">
+<circle id="Ellipse 15" cx="32.6692" cy="32.6692" r="18.1497" fill="var(--fill-0, #DB0004)"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_142">
+<rect width="65.3389" height="65.3389" fill="white"/>
+</clipPath>
+</defs>
+</svg>

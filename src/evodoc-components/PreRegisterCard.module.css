@@ -1,0 +1,290 @@
+/* components/PreRegisterCard.module.css */
+
+.cardWrap {
+  position: relative;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+
+
+.card {
+  position: relative;
+  z-index: 2;
+  background: var(--panel);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.badge, .title, .sub, .steps, .progressTrack, .form, .success {
+  position: relative;
+  z-index: 1;
+}
+
+.badge {
+  display: inline-block;
+  border: 1px solid var(--acid);
+  border-radius: 999px;
+  padding: 5px 14px;
+  margin-bottom: 20px;
+}
+.badge span {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--acid);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+}
+
+.title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: clamp(22px, 4.5vw, 30px);
+  line-height: 1.15;
+  margin: 0 0 10px;
+  color: var(--cream);
+}
+
+.sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+.steps {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.stepTab {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid transparent;
+  cursor: default;
+  transition: border-color 0.25s ease;
+}
+.stepTab.active { border-color: var(--acid); }
+.stepTab.done { cursor: pointer; }
+
+.stepIndex {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.stepTab.active .stepIndex,
+.stepTab.done .stepIndex { color: var(--acid); }
+
+.stepLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+.stepTab.active .stepLabel,
+.stepTab.done .stepLabel { color: var(--cream); }
+
+.progressTrack {
+  height: 2px;
+  background: var(--border-color);
+  margin-bottom: 32px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: var(--acid);
+  /* width is controlled via framer-motion inline styles */
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  color: #d1d1d1;
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  background: #1a1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea.input {
+  min-height: 88px;
+  resize: vertical;
+  padding-top: 12px;
+}
+
+.input::placeholder { color: #888888; opacity: 1; }
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--acid);
+  box-shadow: 0 0 0 3px rgba(214, 243, 3, 0.15); /* var(--acid) at 15% */
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+.errorText {
+  color: var(--error);
+  font-size: 12px;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.globalError {
+  color: var(--error);
+  font-size: 13px;
+  padding: 10px 14px;
+  background: rgba(255, 77, 79, 0.1);
+  border-left: 3px solid var(--error);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.checkboxRow input {
+  accent-color: var(--acid);
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.checkboxRow input:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 2px;
+}
+
+.btnPrimary, .btnGhost {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 14px 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+}
+
+.btnPrimary {
+  background: var(--acid);
+  color: #14150E;
+  width: 100%;
+}
+.btnPrimary:hover:not(:disabled) { background: var(--accent-hover); }
+.btnPrimary:active:not(:disabled) { transform: scale(0.98); }
+.btnPrimary:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
+.btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnGhost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.btnGhost:hover:not(:disabled) { color: var(--cream); border-color: var(--muted); }
+.btnGhost:focus-visible { outline: 2px solid var(--acid); outline-offset: 3px; }
+.btnGhost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnRow {
+  display: flex;
+  gap: 12px;
+}
+.btnRow .btnGhost { flex: 0 0 38%; }
+.btnRow .btnPrimary { flex: 1; }
+
+.success {
+  text-align: center;
+  padding: 20px 0 8px;
+}
+.successIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: var(--acid);
+  color: #14150E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.success h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  margin: 0 0 10px;
+  color: var(--cream);
+}
+.success p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Screen Reader Only for honeypot */
+.srOnly {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* =======================================================================
+   RESPONSIVE
+   ======================================================================= */
+@media (max-width: 640px) {
+  .card { padding: 28px 22px; border-radius: 16px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .steps { gap: 16px; }
+  .btnRow { flex-direction: column; }
+  .btnRow .btnGhost { flex: none; order: 2; }
+  .btnRow .btnPrimary { order: 1; }
+}
+
+@media (max-width: 380px) {
+  .card { padding: 24px 16px; }
+  .input { padding: 10px 12px; font-size: 13px; min-height: 42px; }
+}

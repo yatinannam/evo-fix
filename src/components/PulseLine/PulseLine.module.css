@@ -1,0 +1,75 @@
+.wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  /* Hidden until cards have loaded, then fades in */
+  opacity: 0;
+  animation: wrapperFadeIn 0.8s ease-out 1s forwards;
+}
+
+@keyframes wrapperFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Animated ECG line — starts drawing at 5s (after heart loads)       */
+/* ─────────────────────────────────────────────────────────────────── */
+.ecgLine {
+  animation:
+    ecgFirstDraw 2.4s cubic-bezier(0.22, 1, 0.36, 1) 1s both,
+    ecgLoop      3.6s cubic-bezier(0.22, 1, 0.36, 1) 3.4s infinite;
+}
+
+/* Initial draw */
+@keyframes ecgFirstDraw {
+  0%   { stroke-dashoffset: 2600; opacity: 0; }
+  5%   { opacity: 1; }
+  100% { stroke-dashoffset: 0;    opacity: 1; }
+}
+
+/* Continuous loop: line sweeps across, fades, resets */
+@keyframes ecgLoop {
+  0%   { stroke-dashoffset: 0;     opacity: 1; }
+  44%  { stroke-dashoffset: -2600; opacity: 1; }
+  46%  { stroke-dashoffset: -2600; opacity: 0; }
+  47%  { stroke-dashoffset:  2600; opacity: 0; }
+  58%  { opacity: 0; }
+  63%  { opacity: 1; }
+  100% { stroke-dashoffset: 0;     opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Bright head: races ahead of the line, same delay as ecgLine        */
+/* ─────────────────────────────────────────────────────────────────── */
+.ecgHead {
+  animation:
+    headFirstDraw 2.4s cubic-bezier(0.22, 1, 0.36, 1) 1s both,
+    headLoop      3.6s cubic-bezier(0.22, 1, 0.36, 1) 3.4s infinite;
+}
+
+@keyframes headFirstDraw {
+  0%   { stroke-dashoffset: 2600; opacity: 0; }
+  4%   { opacity: 1; }
+  100% { stroke-dashoffset: -20;  opacity: 1; }
+}
+
+@keyframes headLoop {
+  0%   { stroke-dashoffset: 2600; opacity: 0; }
+  3%   { opacity: 1; }
+  44%  { stroke-dashoffset: -20;  opacity: 1; }
+  46%  { stroke-dashoffset: -20;  opacity: 0; }
+  47%  { stroke-dashoffset: 2600; opacity: 0; }
+  60%  { opacity: 0; }
+  65%  { opacity: 1; }
+  100% { stroke-dashoffset: -20;  opacity: 1; }
+}

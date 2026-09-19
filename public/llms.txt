@@ -1,0 +1,10 @@
+# EvoDoc AI
+
+EvoDoc is an AI clinical co-pilot for modern healthcare professionals.
+It turns years of scattered paper medical records into a one-page, symptom-driven patient timeline.
+It automatically flags dangerous drug interactions and known allergies before a prescription is written — built specifically for the reality of messy, handwritten Indian medical records.
+
+## Features
+- **AI Clinical Summaries:** See a patient's entire relevant history organized into one clean timeline.
+- **Smart Consultation Notes:** Automatically generate consultation notes.
+- **Privacy & Security:** AES-256 locks each file on upload. DPDP Act 2023 aligned, ABDM interoperable.
