@@ -1,27 +1,31 @@
-import { createEmpDashServerClient } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { PeopleClient } from '@/components/emp-dash/people-client';
 import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain } from '@/lib/supabase/types';
 
 export default async function PeoplePage() {
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: actorProfile } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .eq('id', user.id)
-    .single();
-
+  const actorProfile = await getCachedProfile(user.id);
   if (!actorProfile) redirect('/emp-dash/login');
   const roleName: string = (actorProfile as EmpProfile & { emp_roles: Pick<EmpRole, 'name'> }).emp_roles.name;
   const isAdminPlus = roleName === 'admin' || roleName === 'super_admin';
 
-  const { data: profiles, error: profilesErr } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .order('full_name');
+  const supabase = await createEmpDashServerClient();
+
+  // profiles, allUserDomains, allRoles, allDomains are all independent — batch them.
+  const [
+    { data: profiles, error: profilesErr },
+    { data: allUserDomains },
+    { data: allRoles },
+    { data: allDomains },
+  ] = await Promise.all([
+    supabase.from('emp_profiles').select('*, emp_roles(name)').order('full_name'),
+    supabase.from('emp_user_domains').select('*, emp_domains(id, name, slug)'),
+    supabase.from('emp_roles').select('*').order('name'),
+    supabase.from('emp_domains').select('*').order('name'),
+  ]);
 
   if (profilesErr) {
     return (
@@ -31,13 +35,6 @@ export default async function PeoplePage() {
     );
   }
 
-  const { data: allUserDomains } = await supabase
-    .from('emp_user_domains')
-    .select('*, emp_domains(id, name, slug)');
-
-  const { data: allRoles } = await supabase.from('emp_roles').select('*').order('name');
-  const { data: allDomains } = await supabase.from('emp_domains').select('*').order('name');
-
   return (
     <PeopleClient
       profiles={(profiles ?? []) as (EmpProfile & { emp_roles: Pick<EmpRole, 'name'> })[]}
@@ -46,6 +43,7 @@ export default async function PeoplePage() {
       allDomains={(allDomains ?? []) as EmpDomain[]}
       isAdminPlus={isAdminPlus}
       isSuperAdmin={roleName === 'super_admin'}
+      currentUserId={user.id}
     />
   );
 }

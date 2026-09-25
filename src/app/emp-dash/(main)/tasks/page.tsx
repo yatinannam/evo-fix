@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createEmpDashServerClient, getCachedUser } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { TaskBoard } from '@/components/emp-dash/task-board';
 import { NewTaskButton } from '@/components/emp-dash/new-task-button';
@@ -10,32 +10,18 @@ interface PageProps {
 }
 
 export default async function TasksPage({ searchParams }: PageProps) {
-  const { domain: domainFilter, view = 'kanban' } = await searchParams;
+  const { domain: domainFilter, view } = await searchParams;
 
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: profile } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .eq('id', user.id)
-    .single();
-
+  const profile = await getCachedProfile(user.id);
   if (!profile) redirect('/emp-dash/login');
 
   const roleName: string = (profile as EmpProfile & { emp_roles: Pick<EmpRole, 'name'> }).emp_roles.name;
   const isAdminPlus = roleName === 'admin' || roleName === 'super_admin';
 
-  const { data: userDomains } = await supabase
-    .from('emp_user_domains')
-    .select('domain_id, role_in_domain, emp_domains(id, name, slug)')
-    .eq('profile_id', user.id);
-
-  const userDomainIds = (userDomains ?? []).map(ud => ud.domain_id);
-
-  const { data: allDomains } = await supabase.from('emp_domains').select('*').order('name');
-  const { data: allProfiles } = await supabase.from('emp_profiles').select('id, full_name').order('full_name');
+  const supabase = await createEmpDashServerClient();
 
   // Fixed: Use explicit FK hint to avoid "more than one relationship" error
   let taskQuery = supabase
@@ -49,9 +35,23 @@ export default async function TasksPage({ searchParams }: PageProps) {
 
   if (domainFilter) taskQuery = taskQuery.eq('domain_id', domainFilter);
 
-  const { data: rawTasks, error: tasksErr } = await taskQuery;
+  // None of these five queries depend on any other's result — batch them.
+  const [
+    { data: userDomains },
+    { data: allDomains },
+    { data: allProfiles },
+    { data: rawTasks, error: tasksErr },
+    { data: templates },
+  ] = await Promise.all([
+    supabase.from('emp_user_domains').select('domain_id, role_in_domain, emp_domains(id, name, slug)').eq('profile_id', user.id),
+    supabase.from('emp_domains').select('*').order('name'),
+    supabase.from('emp_profiles').select('id, full_name').order('full_name'),
+    taskQuery,
+    supabase.from('emp_domain_field_templates').select('domain_id, schema'),
+  ]);
 
-  const { data: templates } = await supabase.from('emp_domain_field_templates').select('domain_id, schema');
+  const userDomainIds = (userDomains ?? []).map(ud => ud.domain_id);
+
   const domainFieldMap: Record<string, FieldDef[]> = {};
   for (const t of templates ?? []) {
     domainFieldMap[t.domain_id] = Array.isArray(t.schema) ? (t.schema as FieldDef[]) : [];
@@ -62,7 +62,12 @@ export default async function TasksPage({ searchParams }: PageProps) {
     assignees: ((t as { emp_task_assignees?: { emp_profiles: { id: string; full_name: string } }[] }).emp_task_assignees ?? []).map(a => a.emp_profiles),
   }));
 
-  const viewMode = (view === 'list' || view === 'calendar' || view === 'kanban') ? view as 'kanban' | 'list' | 'calendar' : 'kanban';
+  // Social Media tasks default to calendar view; every other domain defaults
+  // to kanban. An explicit ?view= param (from the view-toggle buttons) always
+  // wins over the domain-based default.
+  const selectedDomainSlug = domainFilter ? (allDomains ?? []).find(d => d.id === domainFilter)?.slug : undefined;
+  const defaultView: 'kanban' | 'list' | 'calendar' = selectedDomainSlug === 'social_media' ? 'calendar' : 'kanban';
+  const viewMode = (view === 'list' || view === 'calendar' || view === 'kanban') ? view as 'kanban' | 'list' | 'calendar' : defaultView;
   const canCreateTask = isAdminPlus || (userDomains ?? []).some(ud => ud.role_in_domain === 'head');
 
   return (
@@ -94,7 +99,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
             boxShadow: !domainFilter ? '0 2px 8px rgba(249,115,22,0.3)' : 'none',
           }}>All</a>
           {(allDomains ?? []).map(d => (
-            <a key={d.id} href={`/emp-dash/tasks?domain=${d.id}&view=${view}`}
+            <a key={d.id} href={`/emp-dash/tasks?domain=${d.id}`}
               style={{
                 fontSize:'12px', padding:'6px 14px', borderRadius:'20px', fontWeight:600,
                 textDecoration:'none', transition:'all 0.15s',

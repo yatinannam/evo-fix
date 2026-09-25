@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createProfileAction } from '@/app/emp-dash/actions';
+import { useRouter } from 'next/navigation';
+import { createProfileAction, changeProfileRoleAction } from '@/app/emp-dash/actions';
 import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain } from '@/lib/supabase/types';
 
 type ProfileWithRole = EmpProfile & { emp_roles: Pick<EmpRole, 'name'> };
@@ -14,6 +15,7 @@ interface PeopleClientProps {
   allDomains: EmpDomain[];
   isAdminPlus: boolean;
   isSuperAdmin: boolean;
+  currentUserId: string;
 }
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -27,7 +29,8 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 }
 
-export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, isAdminPlus, isSuperAdmin }: PeopleClientProps) {
+export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, isAdminPlus, isSuperAdmin, currentUserId }: PeopleClientProps) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,14 +49,68 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     return allUserDomains.filter(ud => ud.profile_id === profileId);
   }
 
+  // ── Create profile (incl. Super Admin confirmation gate) ───────────────────
+
+  const [roleId, setRoleId] = useState(allowedRoles[0]?.id ?? '');
+  const [confirmSuperAdmin, setConfirmSuperAdmin] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+  const selectedRoleName = allRoles.find(r => r.id === roleId)?.name;
+  const isSuperAdminSelected = selectedRoleName === 'super_admin';
+
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const fd = new FormData(e.currentTarget);
+
+    if (isSuperAdminSelected && !confirmSuperAdmin) {
+      // Super Admin is the most powerful role in the system — require an
+      // explicit second confirmation step before actually submitting.
+      setPendingFormData(fd);
+      setConfirmSuperAdmin(true);
+      return;
+    }
+
     startTransition(async () => {
-      const result = await createProfileAction(fd);
+      const result = await createProfileAction(pendingFormData ?? fd);
       if (result?.error) { setError(result.error); }
-      else { setShowCreate(false); }
+      else { setShowCreate(false); setConfirmSuperAdmin(false); setPendingFormData(null); }
+    });
+  }
+
+  function closeCreateModal() {
+    setShowCreate(false);
+    setError(null);
+    setConfirmSuperAdmin(false);
+    setPendingFormData(null);
+  }
+
+  // ── Change an existing profile's role ───────────────────────────────────────
+
+  const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null);
+  const [editRoleId, setEditRoleId] = useState('');
+  const [roleError, setRoleError] = useState<string | null>(null);
+
+  function canEditRole(person: ProfileWithRole) {
+    if (!isAdminPlus) return false;
+    if (person.id === currentUserId) return false;
+    if (isSuperAdmin) return true;
+    return person.emp_roles.name !== 'admin' && person.emp_roles.name !== 'super_admin';
+  }
+
+  function startEditRole(person: ProfileWithRole) {
+    setRoleError(null);
+    setEditingRoleFor(person.id);
+    const currentAllowed = allowedRoles.some(r => r.name === person.emp_roles.name);
+    setEditRoleId(currentAllowed ? (allRoles.find(r => r.name === person.emp_roles.name)?.id ?? '') : (allowedRoles[0]?.id ?? ''));
+  }
+
+  function saveRoleChange(profileId: string) {
+    if (!editRoleId) return;
+    setRoleError(null);
+    startTransition(async () => {
+      const result = await changeProfileRoleAction(profileId, editRoleId);
+      if (result?.error) { setRoleError(result.error); }
+      else { setEditingRoleFor(null); router.refresh(); }
     });
   }
 
@@ -142,13 +199,57 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:'14px', fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.full_name}</div>
                   <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.email}</div>
-                  <span style={{
-                    display:'inline-block', marginTop:'8px',
-                    fontSize:'10px', fontWeight:600, padding:'2px 8px', borderRadius:'6px',
-                    color:rm.color, background:rm.bg, border:`1px solid ${rm.border}`,
-                  }}>
-                    {rm.label}
-                  </span>
+
+                  {editingRoleFor === person.id ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'8px' }}>
+                      <select
+                        value={editRoleId}
+                        onChange={e => setEditRoleId(e.target.value)}
+                        style={{
+                          fontSize:'11px', padding:'3px 6px', borderRadius:'6px',
+                          border:'1px solid rgba(0,0,0,0.12)', background:'white', color:'#111',
+                          fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        }}
+                      >
+                        {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
+                      </select>
+                      <button type="button" onClick={() => saveRoleChange(person.id)} disabled={isPending}
+                        title="Save"
+                        style={{ width:'22px', height:'22px', borderRadius:'6px', border:'none', cursor:'pointer', background:'rgba(16,185,129,0.12)', color:'#059669', display:'flex', alignItems:'center', justifyContent:'center' }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </button>
+                      <button type="button" onClick={() => setEditingRoleFor(null)} disabled={isPending}
+                        title="Cancel"
+                        style={{ width:'22px', height:'22px', borderRadius:'6px', border:'none', cursor:'pointer', background:'rgba(0,0,0,0.05)', color:'#9ca3af', display:'flex', alignItems:'center', justifyContent:'center' }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'8px' }}>
+                      <span style={{
+                        display:'inline-block',
+                        fontSize:'10px', fontWeight:600, padding:'2px 8px', borderRadius:'6px',
+                        color:rm.color, background:rm.bg, border:`1px solid ${rm.border}`,
+                      }}>
+                        {rm.label}
+                      </span>
+                      {canEditRole(person) && (
+                        <button type="button" onClick={() => startEditRole(person)}
+                          title="Change role"
+                          style={{ width:'18px', height:'18px', borderRadius:'5px', border:'none', cursor:'pointer', background:'transparent', color:'#d1d5db', display:'flex', alignItems:'center', justifyContent:'center', transition:'color 0.12s' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color='#9ca3af'}
+                          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color='#d1d5db'}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {editingRoleFor === person.id && roleError && (
+                    <div role="alert" style={{ marginTop:'6px', fontSize:'11px', color:'#dc2626' }}>{roleError}</div>
+                  )}
                 </div>
               </div>
               {domains.length > 0 && (
@@ -193,7 +294,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
           }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'24px' }}>
               <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>Invite Team Member</h2>
-              <button onClick={() => { setShowCreate(false); setError(null); }}
+              <button onClick={closeCreateModal}
                 style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', transition:'background 0.12s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.05)'}
                 onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}
@@ -216,43 +317,75 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
               </div>
               <div>
                 <label htmlFor="invite-role" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Role</label>
-                <select id="invite-role" name="role_id" required style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
+                <select id="invite-role" name="role_id" required value={roleId}
+                  onChange={e => { setRoleId(e.target.value); setConfirmSuperAdmin(false); }}
+                  style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
                   {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
                 </select>
               </div>
 
               {error && <div role="alert" style={{ padding:'10px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>{error}</div>}
 
-              <div style={{ display:'flex', gap:'12px', marginTop:'8px' }}>
-                <button type="button" onClick={() => setShowCreate(false)}
-                  style={{
-                    flex:1, padding:'10px', borderRadius:'12px',
-                    border:'1px solid rgba(0,0,0,0.1)', background:'transparent',
-                    fontSize:'14px', color:'#6b7280', cursor:'pointer',
-                    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-                    transition:'background 0.12s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.03)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}
-                >Cancel</button>
-                <button type="submit" disabled={isPending} id="confirm-invite-btn"
-                  style={{
-                    flex:1, padding:'10px', borderRadius:'12px',
-                    background:'linear-gradient(135deg,#f97316,#f43f5e)',
-                    color:'white', fontWeight:600, fontSize:'14px',
-                    border:'none', cursor:'pointer',
-                    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-                    display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
-                    opacity: isPending ? 0.6 : 1,
-                  }}
-                >
-                  {isPending ? (
-                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation:'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Inviting…</>
-                  ) : (
-                    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Invite</>
-                  )}
-                </button>
-              </div>
+              {confirmSuperAdmin ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  <div style={{ padding:'12px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#dc2626', fontSize:'13px', lineHeight:1.5 }}>
+                    You are about to create a new <strong>Super Admin</strong> — the most powerful role in the system, with full access to everything. This action is recorded in the audit log.
+                  </div>
+                  <div style={{ display:'flex', gap:'12px' }}>
+                    <button type="button" onClick={() => { setConfirmSuperAdmin(false); setPendingFormData(null); }}
+                      style={{
+                        flex:1, padding:'10px', borderRadius:'12px',
+                        border:'1px solid rgba(0,0,0,0.1)', background:'transparent',
+                        fontSize:'14px', color:'#6b7280', cursor:'pointer',
+                        fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                      }}
+                    >Go back</button>
+                    <button type="submit" disabled={isPending} id="confirm-super-admin-btn"
+                      style={{
+                        flex:1, padding:'10px', borderRadius:'12px',
+                        background:'linear-gradient(135deg,#dc2626,#f43f5e)',
+                        color:'white', fontWeight:600, fontSize:'13px',
+                        border:'none', cursor:'pointer',
+                        fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      {isPending ? 'Creating…' : 'Yes, create a new Super Admin'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display:'flex', gap:'12px', marginTop:'8px' }}>
+                  <button type="button" onClick={closeCreateModal}
+                    style={{
+                      flex:1, padding:'10px', borderRadius:'12px',
+                      border:'1px solid rgba(0,0,0,0.1)', background:'transparent',
+                      fontSize:'14px', color:'#6b7280', cursor:'pointer',
+                      fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                      transition:'background 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.03)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}
+                  >Cancel</button>
+                  <button type="submit" disabled={isPending} id="confirm-invite-btn"
+                    style={{
+                      flex:1, padding:'10px', borderRadius:'12px',
+                      background:'linear-gradient(135deg,#f97316,#f43f5e)',
+                      color:'white', fontWeight:600, fontSize:'14px',
+                      border:'none', cursor:'pointer',
+                      fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                      display:'flex', alignItems:'center', justifyContent:'center', gap:'6px',
+                      opacity: isPending ? 0.6 : 1,
+                    }}
+                  >
+                    {isPending ? (
+                      <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation:'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Inviting…</>
+                    ) : (
+                      <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Invite</>
+                    )}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

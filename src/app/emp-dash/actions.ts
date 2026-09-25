@@ -18,13 +18,17 @@ async function getActorProfile(supabase: Awaited<ReturnType<typeof createEmpDash
   return data as (typeof data & { emp_roles: { name: string } }) | null;
 }
 
+// Uses the service-role client — emp_notifications' INSERT policy is
+// WITH CHECK (false) for the authenticated role (see migration_v4_hardening.sql),
+// so any user impersonating another user's notifications via a direct client
+// call is rejected; only this server-side path can write notification rows.
 async function writeNotification(
-  supabase: Awaited<ReturnType<typeof createEmpDashServerClient>>,
   profileId: string,
   type: NotificationType,
   payload: Record<string, unknown>,
 ) {
-  await supabase.from('emp_notifications').insert({ profile_id: profileId, type, payload });
+  const admin = createEmpDashAdminClient();
+  await admin.from('emp_notifications').insert({ profile_id: profileId, type, payload });
 }
 
 async function writeAuditLog(
@@ -85,20 +89,15 @@ export async function createTaskAction(formData: FormData) {
     if (assignErr) return { error: `Task created but failed to assign: ${assignErr.message}` };
   }
 
-  // Transition draft → not_started now that it's set up
-  // (bypass DB trigger by using service role since the trigger checks auth.uid()
-  //  but this is the creator performing the action — we pass it through the normal client)
+  // Transition draft → not_started now that it's set up.
+  // enforce_task_status_transition() writes the emp_task_status_history row
+  // itself (from_status='draft') — no manual history insert needed here.
   const { error: transErr } = await supabase
     .from('emp_tasks')
     .update({ status: 'not_started' })
     .eq('id', task.id);
 
   if (transErr) return { error: `Task created but failed to publish: ${transErr.message}` };
-
-  // Write initial status history
-  await supabase.from('emp_task_status_history').insert({
-    task_id: task.id, changed_by: user.id, from_status: null, to_status: 'not_started',
-  });
 
   // Insert milestones
   if (milestonesData.length > 0) {
@@ -112,7 +111,7 @@ export async function createTaskAction(formData: FormData) {
 
   // Notify assignees
   for (const pid of assigneeIds) {
-    await writeNotification(supabase, pid, 'task_assigned', {
+    await writeNotification(pid, 'task_assigned', {
       task_id: task.id, task_title: title, assigned_by: user.id,
     });
   }
@@ -169,30 +168,28 @@ export async function updateTaskStatusAction(
     : (currentStatus === 'submitted_for_review') ? null
     : task.reviewing_by;
 
+  // status_change_comment travels in the same UPDATE that changes `status` so
+  // enforce_task_status_transition() can validate it (mandatory on return)
+  // and write the emp_task_status_history row atomically — not bypassable via
+  // a raw client update that skips this server action's own pre-checks above.
   const { error: updateErr } = await supabase
     .from('emp_tasks')
     .update({
       status: newStatus,
       reviewing_by: reviewingBy,
       reviewing_since: reviewingBy ? task.reviewing_since : null,
+      status_change_comment: comment?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', taskId);
 
   if (updateErr) return { error: updateErr.message };
 
-  // Write status history
-  await supabase.from('emp_task_status_history').insert({
-    task_id: taskId, changed_by: user.id,
-    from_status: currentStatus, to_status: newStatus,
-    comment: comment?.trim() || null,
-  });
-
   // Notify: assignees + creator on status change
   const assigneeIds = ((task as { emp_task_assignees: { profile_id: string }[] }).emp_task_assignees ?? []).map(a => a.profile_id);
   const notifyIds = new Set([...assigneeIds, task.created_by].filter(id => id !== user.id));
   for (const pid of notifyIds) {
-    await writeNotification(supabase, pid, 'status_changed', {
+    await writeNotification(pid, 'status_changed', {
       task_id: taskId, task_title: task.title, from_status: currentStatus, to_status: newStatus, comment: comment?.trim() || null,
     });
   }
@@ -222,25 +219,49 @@ export async function claimTaskReviewAction(taskId: string) {
     .single();
   if (!task) return { error: 'Task not found' };
 
-  // Allow claim if: no reviewer, or reviewer is current user, or lock is stale (>2h)
-  if (task.reviewing_by && task.reviewing_by !== user.id) {
+  const twoHours = 2 * 60 * 60 * 1000;
+  const staleCutoffIso = new Date(Date.now() - twoHours).toISOString();
+  const wasHeldByOther = !!task.reviewing_by && task.reviewing_by !== user.id;
+
+  // Fast-fail pre-check for a friendly message (not the security boundary —
+  // the conditional UPDATE below is the actual compare-and-swap).
+  if (wasHeldByOther) {
     const lockAge = task.reviewing_since
       ? Date.now() - new Date(task.reviewing_since).getTime()
       : Infinity;
-    const twoHours = 2 * 60 * 60 * 1000;
     if (lockAge < twoHours) {
-      const { data: reviewer } = await supabase.from('emp_profiles').select('full_name').eq('id', task.reviewing_by).single();
+      const { data: reviewer } = await supabase.from('emp_profiles').select('full_name').eq('id', task.reviewing_by!).single();
       return { error: `Already under review by ${reviewer?.full_name ?? 'another Domain Head'}` };
     }
-    // Stale lock — allow claim through
   }
 
   const now = new Date().toISOString();
-  await supabase.from('emp_tasks').update({ reviewing_by: user.id, reviewing_since: now }).eq('id', taskId);
+
+  // Compare-and-swap: only succeeds if the row still matches "unclaimed,
+  // already mine, or stale" at write time — closes the race where two heads
+  // both pass the read-check above before either writes.
+  const { data: claimed, error: claimErr } = await supabase
+    .from('emp_tasks')
+    .update({ reviewing_by: user.id, reviewing_since: now })
+    .eq('id', taskId)
+    .or(`reviewing_by.is.null,reviewing_by.eq.${user.id},reviewing_since.lt.${staleCutoffIso}`)
+    .select('id')
+    .maybeSingle();
+
+  if (claimErr) return { error: claimErr.message };
+
+  if (!claimed) {
+    // Someone else won the race between our read and our write.
+    const { data: current } = await supabase.from('emp_tasks').select('reviewing_by').eq('id', taskId).single();
+    const { data: reviewer } = current?.reviewing_by
+      ? await supabase.from('emp_profiles').select('full_name').eq('id', current.reviewing_by).single()
+      : { data: null };
+    return { error: `Already under review by ${reviewer?.full_name ?? 'another Domain Head'}` };
+  }
 
   // Notify previous reviewer if we took over a stale lock
-  if (task.reviewing_by && task.reviewing_by !== user.id) {
-    await writeNotification(supabase, task.reviewing_by, 'review_claimed', {
+  if (wasHeldByOther) {
+    await writeNotification(task.reviewing_by!, 'review_claimed', {
       task_id: taskId, task_title: task.title, claimed_by: user.id,
     });
   }
@@ -289,7 +310,7 @@ export async function addCommentAction(taskId: string, body: string) {
     const assigneeIds = ((task as { emp_task_assignees: { profile_id: string }[] }).emp_task_assignees ?? []).map(a => a.profile_id);
     const notifyIds = new Set([...assigneeIds, task.created_by].filter(id => id !== user.id));
     for (const pid of notifyIds) {
-      await writeNotification(supabase, pid, 'comment_added', {
+      await writeNotification(pid, 'comment_added', {
         task_id: taskId, task_title: task.title, commenter_id: user.id,
       });
     }
@@ -303,7 +324,7 @@ export async function addCommentAction(taskId: string, body: string) {
         .in('full_name', mentionedNames);
       for (const p of mentionedProfiles ?? []) {
         if (p.id !== user.id) {
-          await writeNotification(supabase, p.id, 'mention', {
+          await writeNotification(p.id, 'mention', {
             task_id: taskId, task_title: task.title, commenter_id: user.id, body: body.trim(),
           });
         }
@@ -496,7 +517,7 @@ export async function checkOverdueReviewsAction() {
       .limit(1);
 
     if (!existing || existing.length === 0) {
-      await writeNotification(supabase, user.id, 'review_overdue', {
+      await writeNotification(user.id, 'review_overdue', {
         task_id: task.id, task_title: task.title, domain_id: task.domain_id,
       });
     }
@@ -561,6 +582,54 @@ export async function createProfileAction(formData: FormData) {
   const auditAction = targetRole.name === 'super_admin' ? 'super_admin_created' : 'profile_created';
   await writeAuditLog(supabase, user.id, auditAction, {
     new_profile_id: authUser.user.id, email, role: targetRole.name,
+  });
+
+  revalidatePath('/emp-dash/people');
+  return { success: true };
+}
+
+// ── Change an existing profile's role (Admin+ only) ───────────────────────────
+
+export async function changeProfileRoleAction(profileId: string, newRoleId: string) {
+  const supabase = await createEmpDashServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  // Redundant with the DB-level enforce_profile_role_change trigger, but gives
+  // a friendly error instead of a raw Postgres exception.
+  if (profileId === user.id) return { error: 'You cannot change your own role.' };
+
+  const actorProfile = await getActorProfile(supabase, user.id);
+  const actorRole = actorProfile?.emp_roles?.name;
+  if (actorRole !== 'admin' && actorRole !== 'super_admin') {
+    return { error: 'Only Admins can change roles' };
+  }
+
+  const { data: target } = await supabase
+    .from('emp_profiles')
+    .select('role_id, emp_roles(name)')
+    .eq('id', profileId)
+    .single();
+  if (!target) return { error: 'Profile not found' };
+  const targetCurrentRole = (target as { emp_roles: { name: string } }).emp_roles.name;
+
+  // Admins may never touch an existing Admin's or Super Admin's role — only a Super Admin can.
+  if (actorRole === 'admin' && (targetCurrentRole === 'admin' || targetCurrentRole === 'super_admin')) {
+    return { error: 'Only a Super Admin can change the role of an existing Admin or Super Admin' };
+  }
+
+  const { data: newRole } = await supabase.from('emp_roles').select('name').eq('id', newRoleId).single();
+  if (!newRole) return { error: 'Invalid role' };
+
+  if (actorRole === 'admin' && newRole.name !== 'domain_head' && newRole.name !== 'employee') {
+    return { error: 'Admins can only assign Domain Head or Employee roles' };
+  }
+
+  const { error: updateErr } = await supabase.from('emp_profiles').update({ role_id: newRoleId }).eq('id', profileId);
+  if (updateErr) return { error: updateErr.message };
+
+  await writeAuditLog(supabase, user.id, 'role_changed', {
+    profile_id: profileId, old_role: targetCurrentRole, new_role: newRole.name,
   });
 
   revalidatePath('/emp-dash/people');

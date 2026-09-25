@@ -3,17 +3,21 @@
 
 import { useState, useTransition } from 'react';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
-import type { EmpDomain, EmpProfile, EmpRole } from '@/lib/supabase/types';
+import type { EmpDomain, EmpProfile, EmpRole, AuditAction } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
 
 interface DomainAdminRow {
   id: string; domain_id: string; admin_profile_id: string;
   emp_domains: { name: string }; emp_profiles: { full_name: string; email: string };
 }
-interface AuditRow {
+interface StatusHistoryRow {
   id: string; from_status: string | null; to_status: string; created_at: string; comment: string | null;
   emp_profiles: { full_name: string } | null;
   emp_tasks: { title: string; emp_domains: { name: string } } | null;
+}
+interface AuditLogRow {
+  id: string; actor_id: string; action: AuditAction; target: Record<string, unknown>; created_at: string;
+  emp_profiles: { full_name: string } | null;
 }
 interface UserDomainRow {
   id: string; profile_id: string; domain_id: string; role_in_domain: string; created_at: string;
@@ -24,13 +28,42 @@ interface UserDomainRow {
 interface AdminClientProps {
   domainAdminMap: DomainAdminRow[]; domains: EmpDomain[];
   adminProfiles: (EmpProfile & { emp_roles: Pick<EmpRole, 'name'> })[];
-  auditLog: AuditRow[]; userDomains: UserDomainRow[]; isSuperAdmin: boolean;
+  statusHistory: StatusHistoryRow[]; userDomains: UserDomainRow[];
+  auditLogEntries: AuditLogRow[]; isSuperAdmin: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: 'Not started', in_progress: 'In progress',
   submitted_for_review: 'In review', completed: 'Completed',
 };
+
+const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
+  profile_created: 'created a profile',
+  role_changed: "changed a profile's role",
+  super_admin_created: 'created a new Super Admin',
+  domain_reassigned: 'reassigned a domain',
+  task_created: 'created a task',
+  status_changed: 'changed a task status',
+};
+
+function describeAuditTarget(entry: AuditLogRow): string {
+  const t = entry.target ?? {};
+  switch (entry.action) {
+    case 'role_changed':
+      return `${(t.old_role as string) ?? '—'} → ${(t.new_role as string) ?? '—'}`;
+    case 'profile_created':
+    case 'super_admin_created':
+      return `${(t.email as string) ?? '—'} (${(t.role as string) ?? '—'})`;
+    case 'task_created':
+      return `"${(t.title as string) ?? '—'}"`;
+    case 'status_changed':
+      return `${(t.from_status as string) ?? '—'} → ${(t.to_status as string) ?? '—'}`;
+    case 'domain_reassigned':
+      return '';
+    default:
+      return '';
+  }
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' });
@@ -44,8 +77,8 @@ const selectStyle: React.CSSProperties = {
   WebkitAppearance:'none', appearance:'none',
 };
 
-export function AdminClient({ domainAdminMap, domains, adminProfiles, auditLog, userDomains, isSuperAdmin }: AdminClientProps) {
-  const [tab, setTab] = useState<'domain-map' | 'user-domains' | 'audit'>('domain-map');
+export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHistory, userDomains, auditLogEntries, isSuperAdmin }: AdminClientProps) {
+  const [tab, setTab] = useState<'domain-map' | 'user-domains' | 'status-history' | 'audit-log'>('domain-map');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -105,7 +138,8 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, auditLog, 
   const TAB_ITEMS = [
     { key: 'domain-map' as const, label: 'Domain → Admin' },
     { key: 'user-domains' as const, label: 'Domain Members' },
-    { key: 'audit' as const, label: 'Audit Log' },
+    { key: 'status-history' as const, label: 'Status Changes' },
+    { key: 'audit-log' as const, label: 'Audit Log' },
   ];
 
   const addBtnStyle: React.CSSProperties = {
@@ -304,15 +338,15 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, auditLog, 
         </div>
       )}
 
-      {/* Audit log tab */}
-      {tab === 'audit' && (
+      {/* Status Changes tab (emp_task_status_history) */}
+      {tab === 'status-history' && (
         <div style={{ background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)', borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)', overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}>
           <div style={{ padding:'14px 20px', borderBottom:'1px solid rgba(0,0,0,0.05)', fontSize:'10px', fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em' }}>
             Last 50 Status Changes
           </div>
           <div>
-            {auditLog.length === 0 && <div style={{ padding:'40px 20px', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No activity yet.</div>}
-            {auditLog.map(entry => (
+            {statusHistory.length === 0 && <div style={{ padding:'40px 20px', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No activity yet.</div>}
+            {statusHistory.map(entry => (
               <div key={entry.id}
                 style={{ padding:'14px 20px', display:'flex', alignItems:'flex-start', gap:'12px', borderTop:'1px solid rgba(0,0,0,0.04)', transition:'background 0.12s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background='rgba(0,0,0,0.02)'}
@@ -328,6 +362,35 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, auditLog, 
                     {' '}→ <strong style={{ color:'#f97316' }}>{STATUS_LABEL[entry.to_status]}</strong>
                   </div>
                   {entry.comment && <div style={{ fontSize:'12px', color:'#6b7280', marginTop:'2px', fontStyle:'italic' }}>&ldquo;{entry.comment}&rdquo;</div>}
+                  <div style={{ fontSize:'10px', color:'#9ca3af', marginTop:'3px' }}>{formatDate(entry.created_at)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Audit Log tab (emp_audit_log — the real audit trail) */}
+      {tab === 'audit-log' && (
+        <div style={{ background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)', borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)', overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ padding:'14px 20px', borderBottom:'1px solid rgba(0,0,0,0.05)', fontSize:'10px', fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+            Last 50 Audit Entries
+          </div>
+          <div>
+            {auditLogEntries.length === 0 && <div style={{ padding:'40px 20px', textAlign:'center', color:'#9ca3af', fontSize:'14px' }}>No activity yet.</div>}
+            {auditLogEntries.map(entry => (
+              <div key={entry.id}
+                style={{ padding:'14px 20px', display:'flex', alignItems:'flex-start', gap:'12px', borderTop:'1px solid rgba(0,0,0,0.04)', transition:'background 0.12s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background='rgba(0,0,0,0.02)'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background='transparent'}
+              >
+                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:'linear-gradient(135deg,#f97316,#f43f5e)', marginTop:'8px', flexShrink:0 }} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:'13px', color:'#374151', lineHeight:1.5 }}>
+                    <span style={{ fontWeight:600, color:'#111' }}>{entry.emp_profiles?.full_name ?? 'Unknown'}</span>{' '}
+                    {AUDIT_ACTION_LABEL[entry.action] ?? entry.action}
+                    {describeAuditTarget(entry) && <> — <strong style={{ color:'#f97316' }}>{describeAuditTarget(entry)}</strong></>}
+                  </div>
                   <div style={{ fontSize:'10px', color:'#9ca3af', marginTop:'3px' }}>{formatDate(entry.created_at)}</div>
                 </div>
               </div>

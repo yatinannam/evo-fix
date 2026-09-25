@@ -37,15 +37,14 @@ export async function saveFileMetadataAction(
       .limit(1);
     const nextVersion = (versions?.[0]?.version ?? 0) + 1;
 
-    // Build the public URL for this version
-    const { data: urlData } = supabase.storage
-      .from('emp-dash-files')
-      .getPublicUrl(storagePath);
-
+    // 'emp-dash-files' is a private bucket — getPublicUrl() always 403s and is
+    // never read anywhere; real access always goes through FileUploader's
+    // on-demand createSignedUrl(storage_path). storage_url stores the same
+    // storage_path value so the column holds meaningful (if redundant) data.
     const { error: versionErr } = await supabase.from('emp_file_versions').insert({
       file_id: existing.id,
       version: nextVersion,
-      storage_url: urlData.publicUrl,
+      storage_url: storagePath,
       uploaded_by: user.id,
     });
     if (versionErr) return { error: versionErr.message };
@@ -71,12 +70,11 @@ export async function saveFileMetadataAction(
 
   if (fileErr || !file) return { error: fileErr?.message ?? 'Failed to save file metadata' };
 
-  const { data: urlData } = supabase.storage.from('emp-dash-files').getPublicUrl(storagePath);
-
+  // See note above — private bucket, storage_url holds storage_path, not a public URL.
   await supabase.from('emp_file_versions').insert({
     file_id: file.id,
     version: 1,
-    storage_url: urlData.publicUrl,
+    storage_url: storagePath,
     uploaded_by: user.id,
   });
 

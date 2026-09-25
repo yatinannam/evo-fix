@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createEmpDashServerClient, getCachedUser } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { EmpTask, EmpProfile, EmpRole, EmpDomain } from '@/lib/supabase/types';
@@ -31,41 +31,47 @@ function fmt(iso: string | null) {
 }
 
 export default async function EmpDashMyDayPage() {
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: profile } = await supabase
-    .from('emp_profiles').select('*, emp_roles(name)').eq('id', user.id).single();
+  const profile = await getCachedProfile(user.id);
   if (!profile) redirect('/emp-dash/login');
 
   const roleName: string = (profile as EmpProfile & { emp_roles: Pick<EmpRole,'name'> }).emp_roles.name;
-
-  const { data: myTasks, error: myTasksErr } = await supabase
-    .from('emp_tasks')
-    .select('*, emp_domains(name, slug), emp_task_assignees!inner(profile_id)')
-    .eq('emp_task_assignees.profile_id', user.id)
-    .neq('status', 'completed')
-    .order('deadline', { ascending: true })
-    .limit(10);
-
-  const awaitingReview: TaskWithProfile[] = [];
   const isReviewer = roleName !== 'employee';
-  if (isReviewer) {
-    const { data: rt } = await supabase
-      .from('emp_tasks')
-      .select('*, emp_domains(name, slug), emp_profiles!created_by(full_name)')
-      .eq('status', 'submitted_for_review').limit(5);
-    if (rt) awaitingReview.push(...(rt as TaskWithProfile[]));
-  }
 
-  const { data: recentComments } = await supabase
-    .from('emp_task_comments')
-    .select('id, body, created_at, task_id')
-    .ilike('body', `%@${profile.full_name.split(' ')[0]}%`)
-    .neq('author_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(3);
+  const supabase = await createEmpDashServerClient();
+
+  // myTasks, awaitingReview (if applicable), and recentComments are all
+  // independent given user.id/profile — batch them.
+  const [
+    { data: myTasks, error: myTasksErr },
+    awaitingReviewResult,
+    { data: recentComments },
+  ] = await Promise.all([
+    supabase
+      .from('emp_tasks')
+      .select('*, emp_domains(name, slug), emp_task_assignees!inner(profile_id)')
+      .eq('emp_task_assignees.profile_id', user.id)
+      .neq('status', 'completed')
+      .order('deadline', { ascending: true })
+      .limit(10),
+    isReviewer
+      ? supabase
+          .from('emp_tasks')
+          .select('*, emp_domains(name, slug), emp_profiles!created_by(full_name)')
+          .eq('status', 'submitted_for_review').limit(5)
+      : Promise.resolve({ data: null }),
+    supabase
+      .from('emp_task_comments')
+      .select('id, body, created_at, task_id')
+      .ilike('body', `%@${profile.full_name.split(' ')[0]}%`)
+      .neq('author_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(3),
+  ]);
+
+  const awaitingReview: TaskWithProfile[] = isReviewer ? ((awaitingReviewResult.data ?? []) as TaskWithProfile[]) : [];
 
   const myTasksList = (myTasks ?? []) as unknown as TaskWithDomain[];
   const hour = new Date().getHours();

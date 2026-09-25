@@ -33,6 +33,21 @@ function isOverdue48h(updatedAt: string) {
   return (Date.now() - new Date(updatedAt).getTime()) > 48 * 60 * 60 * 1000;
 }
 
+// Deadline-urgency traffic light — layered on top of the status badges/
+// priority dots/48h-in-review badge above, never replacing them. Both can
+// show on the same card at once (e.g. a stale review that's also overdue).
+type DeadlineUrgency = 'overdue' | 'completed' | 'normal';
+function deadlineUrgency(task: Pick<EmpTask, 'deadline' | 'status'>): DeadlineUrgency {
+  if (task.status === 'completed') return 'completed';
+  if (task.deadline && new Date(task.deadline).getTime() < Date.now()) return 'overdue';
+  return 'normal';
+}
+const URGENCY_STYLE: Record<DeadlineUrgency, { bg: string; border: string }> = {
+  overdue:   { bg: '#fff1f2', border: '#fecdd3' },
+  completed: { bg: '#ecfdf5', border: '#a7f3d0' },
+  normal:    { bg: '', border: '' }, // unchanged — caller keeps its own default
+};
+
 function formatDate(iso: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -49,14 +64,17 @@ const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }>
 function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'list' }) {
   const stale = task.status === 'submitted_for_review' && isOverdue48h(task.updated_at);
   const sm = STATUS_LABEL[task.status];
+  const urgency = deadlineUrgency(task);
+  const us = URGENCY_STYLE[urgency];
 
   if (mode === 'list') {
     return (
       <Link href={`/emp-dash/tasks/${task.id}`} style={{ textDecoration:'none' }}>
         <div style={{
           display:'flex', alignItems:'center', gap:'14px',
-          background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)',
-          borderRadius:'14px', border:'1px solid rgba(255,255,255,0.8)',
+          background: urgency === 'normal' ? 'rgba(255,255,255,0.72)' : us.bg,
+          backdropFilter:'blur(8px)',
+          borderRadius:'14px', border: `1px solid ${urgency === 'normal' ? 'rgba(255,255,255,0.8)' : us.border}`,
           padding:'14px 18px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
           transition:'box-shadow 0.15s, transform 0.1s', cursor:'pointer',
         }}
@@ -65,7 +83,11 @@ function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'l
         >
           <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:PRIORITY_DOT[task.priority], flexShrink:0 }} />
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:'14px', fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{task.title}</div>
+            <div style={{
+              fontSize:'14px', fontWeight:600, color: urgency === 'completed' ? '#6b7280' : '#111',
+              textDecoration: urgency === 'completed' ? 'line-through' : 'none',
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+            }}>{task.title}</div>
             <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px' }}>{task.emp_domains.name}</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
@@ -82,8 +104,9 @@ function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'l
   return (
     <Link href={`/emp-dash/tasks/${task.id}`} style={{ textDecoration:'none', display:'block' }}>
       <div style={{
-        background:'rgba(255,255,255,0.82)', backdropFilter:'blur(8px)',
-        borderRadius:'12px', border:'1px solid rgba(255,255,255,0.8)',
+        background: urgency === 'normal' ? 'rgba(255,255,255,0.82)' : us.bg,
+        backdropFilter:'blur(8px)',
+        borderRadius:'12px', border: `1px solid ${urgency === 'normal' ? 'rgba(255,255,255,0.8)' : us.border}`,
         padding:'14px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
         transition:'box-shadow 0.15s, transform 0.1s', cursor:'pointer',
       }}
@@ -96,7 +119,11 @@ function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'l
           {stale && <span style={{ fontSize:'10px', color:'#dc2626' }}>⚠</span>}
           <span style={{ fontSize:'10px', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:600 }}>{task.emp_domains.name}</span>
         </div>
-        <div style={{ fontSize:'13px', fontWeight:600, color:'#111', lineHeight:1.4, marginBottom:'8px' }}>{task.title}</div>
+        <div style={{
+          fontSize:'13px', fontWeight:600, color: urgency === 'completed' ? '#6b7280' : '#111',
+          textDecoration: urgency === 'completed' ? 'line-through' : 'none',
+          lineHeight:1.4, marginBottom:'8px',
+        }}>{task.title}</div>
         {/* Bottom row: date + assignees */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           {task.deadline && (
@@ -163,21 +190,27 @@ function CalendarView({ tasks }: { tasks: TaskWithRelations[] }) {
               </div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
-              {dayTasks.map(t => (
-                <Link key={t.id} href={`/emp-dash/tasks/${t.id}`}
-                  style={{
-                    fontSize:'10px', padding:'4px 8px', borderRadius:'8px',
-                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                    textDecoration:'none', color:'#374151', fontWeight:500,
-                    background:'rgba(255,255,255,0.7)', border:'1px solid rgba(0,0,0,0.06)',
-                    display:'block',
-                  }}
-                  title={t.title}
-                >
-                  <span style={{ display:'inline-block', width:'5px', height:'5px', borderRadius:'50%', background:PRIORITY_DOT[t.priority], marginRight:'4px', verticalAlign:'middle' }} />
-                  {t.title}
-                </Link>
-              ))}
+              {dayTasks.map(t => {
+                const urgency = deadlineUrgency(t);
+                const us = URGENCY_STYLE[urgency];
+                return (
+                  <Link key={t.id} href={`/emp-dash/tasks/${t.id}`}
+                    style={{
+                      fontSize:'10px', padding:'4px 8px', borderRadius:'8px',
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                      textDecoration: urgency === 'completed' ? 'line-through' : 'none',
+                      color: urgency === 'completed' ? '#6b7280' : '#374151', fontWeight:500,
+                      background: urgency === 'normal' ? 'rgba(255,255,255,0.7)' : us.bg,
+                      border: `1px solid ${urgency === 'normal' ? 'rgba(0,0,0,0.06)' : us.border}`,
+                      display:'block',
+                    }}
+                    title={t.title}
+                  >
+                    <span style={{ display:'inline-block', width:'5px', height:'5px', borderRadius:'50%', background:PRIORITY_DOT[t.priority], marginRight:'4px', verticalAlign:'middle' }} />
+                    {t.title}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         );

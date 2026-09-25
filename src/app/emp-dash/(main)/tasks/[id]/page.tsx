@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createEmpDashServerClient } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { TaskStatusPanel } from '@/components/emp-dash/task-status-panel';
 import { TaskThread } from '@/components/emp-dash/task-thread';
@@ -37,21 +37,26 @@ function formatDuration(isoStart: string) {
 
 export default async function TaskDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: profile } = await supabase.from('emp_profiles').select('*, emp_roles(name)').eq('id', user.id).single();
+  const supabase = await createEmpDashServerClient();
+
+  // profile only needs user.id; task only needs id — independent, batch them.
+  const [profile, taskResult] = await Promise.all([
+    getCachedProfile(user.id),
+    supabase
+      .from('emp_tasks')
+      .select(`*, emp_domains(id, name, slug), emp_task_assignees(profile_id, emp_profiles:profile_id(id, full_name)), emp_profiles!created_by(full_name)`)
+      .eq('id', id)
+      .single(),
+  ]);
+
   if (!profile) redirect('/emp-dash/login');
   const roleName: string = (profile as EmpProfile & { emp_roles: Pick<EmpRole, 'name'> }).emp_roles.name;
   const isAdminPlus = roleName === 'admin' || roleName === 'super_admin';
 
-  const { data: task, error: taskErr } = await supabase
-    .from('emp_tasks')
-    .select(`*, emp_domains(id, name, slug), emp_task_assignees(profile_id, emp_profiles:profile_id(id, full_name)), emp_profiles!created_by(full_name)`)
-    .eq('id', id)
-    .single();
-
+  const { data: task, error: taskErr } = taskResult;
   if (taskErr || !task) notFound();
 
   const taskDomainId = task.domain_id;
@@ -59,52 +64,33 @@ export default async function TaskDetailPage({ params }: PageProps) {
   const creatorName = (task as { emp_profiles?: { full_name: string } }).emp_profiles?.full_name ?? 'Unknown';
   const domainName = (task.emp_domains as unknown as EmpDomain).name;
   const isAssignee = assignees.some(a => a.id === user.id);
-
-  const { data: ud } = await supabase
-    .from('emp_user_domains')
-    .select('role_in_domain')
-    .eq('profile_id', user.id)
-    .eq('domain_id', taskDomainId)
-    .single();
-  const isDomainHead = ud?.role_in_domain === 'head';
-  const canVerify = isAdminPlus || isDomainHead;
   const isReviewer = task.reviewing_by === user.id;
 
-  let reviewerName: string | null = null;
-  if (task.reviewing_by && task.reviewing_by !== user.id) {
-    const { data: reviewer } = await supabase.from('emp_profiles').select('full_name').eq('id', task.reviewing_by).single();
-    reviewerName = reviewer?.full_name ?? null;
-  }
+  // Everything below only needs id/taskDomainId/task.reviewing_by, all
+  // already known — batch every remaining independent fetch.
+  const [
+    { data: ud },
+    reviewerResult,
+    { data: history },
+    { data: comments },
+    { data: milestones },
+    { data: files },
+    { data: template },
+  ] = await Promise.all([
+    supabase.from('emp_user_domains').select('role_in_domain').eq('profile_id', user.id).eq('domain_id', taskDomainId).single(),
+    (task.reviewing_by && task.reviewing_by !== user.id)
+      ? supabase.from('emp_profiles').select('full_name').eq('id', task.reviewing_by).single()
+      : Promise.resolve({ data: null }),
+    supabase.from('emp_task_status_history').select('*, emp_profiles!changed_by(full_name)').eq('task_id', id).order('created_at', { ascending: true }),
+    supabase.from('emp_task_comments').select('*, emp_profiles!author_id(full_name)').eq('task_id', id).order('created_at', { ascending: true }),
+    supabase.from('emp_task_milestones').select('*').eq('task_id', id).order('sort_order', { ascending: true }),
+    supabase.from('emp_files').select('*').eq('task_id', id).order('created_at', { ascending: false }),
+    supabase.from('emp_domain_field_templates').select('schema').eq('domain_id', taskDomainId).single(),
+  ]);
 
-  const { data: history } = await supabase
-    .from('emp_task_status_history')
-    .select('*, emp_profiles!changed_by(full_name)')
-    .eq('task_id', id)
-    .order('created_at', { ascending: true });
-
-  const { data: comments } = await supabase
-    .from('emp_task_comments')
-    .select('*, emp_profiles!author_id(full_name)')
-    .eq('task_id', id)
-    .order('created_at', { ascending: true });
-
-  const { data: milestones } = await supabase
-    .from('emp_task_milestones')
-    .select('*')
-    .eq('task_id', id)
-    .order('sort_order', { ascending: true });
-
-  const { data: files } = await supabase
-    .from('emp_files')
-    .select('*')
-    .eq('task_id', id)
-    .order('created_at', { ascending: false });
-
-  const { data: template } = await supabase
-    .from('emp_domain_field_templates')
-    .select('schema')
-    .eq('domain_id', taskDomainId)
-    .single();
+  const isDomainHead = ud?.role_in_domain === 'head';
+  const canVerify = isAdminPlus || isDomainHead;
+  const reviewerName: string | null = reviewerResult?.data?.full_name ?? null;
 
   const domainFields: FieldDef[] = Array.isArray(template?.schema) ? (template.schema as FieldDef[]) : [];
   const customFieldsData = (task.custom_fields ?? {}) as Record<string, unknown>;

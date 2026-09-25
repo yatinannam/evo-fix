@@ -1,37 +1,38 @@
-import { createEmpDashServerClient } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AdminClient } from '@/components/emp-dash/admin-client';
 import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, EmpTaskHistory } from '@/lib/supabase/types';
 
 export default async function AdminPage() {
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: actorProfile } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .eq('id', user.id)
-    .single();
-
+  const actorProfile = await getCachedProfile(user.id);
   if (!actorProfile) redirect('/emp-dash/login');
   const roleName: string = (actorProfile as EmpProfile & { emp_roles: Pick<EmpRole, 'name'> }).emp_roles.name;
 
   // Only admin+ can access this page
   if (roleName !== 'admin' && roleName !== 'super_admin') redirect('/emp-dash');
 
+  const supabase = await createEmpDashServerClient();
+
   const [
     { data: domainAdminMap },
     { data: domains },
     { data: adminProfiles },
-    { data: auditLog },
+    { data: statusHistory },
     { data: userDomains },
+    { data: auditLogEntries },
   ] = await Promise.all([
     supabase.from('emp_domain_admin_map').select('*, emp_domains(name), emp_profiles!admin_profile_id(full_name, email)'),
     supabase.from('emp_domains').select('*').order('name'),
     supabase.from('emp_profiles').select('id, full_name, email, emp_roles(name)').order('full_name'),
     supabase.from('emp_task_status_history').select('*, emp_profiles!changed_by(full_name), emp_tasks(title, emp_domains(name))').order('created_at', { ascending: false }).limit(50),
     supabase.from('emp_user_domains').select('*, emp_profiles(full_name), emp_domains(name)').order('created_at', { ascending: false }),
+    // The real audit log — profile creation, role changes, domain reassignment,
+    // super-admin creation. RLS (audit_log_read) already scopes this: admins
+    // never see super_admin_created rows, super admins see everything.
+    supabase.from('emp_audit_log').select('*, emp_profiles!actor_id(full_name)').order('created_at', { ascending: false }).limit(50),
   ]);
 
   return (
@@ -39,8 +40,9 @@ export default async function AdminPage() {
       domainAdminMap={(domainAdminMap ?? []) as Parameters<typeof AdminClient>[0]['domainAdminMap']}
       domains={(domains ?? []) as EmpDomain[]}
       adminProfiles={(adminProfiles ?? []) as (EmpProfile & { emp_roles: Pick<EmpRole, 'name'> })[]}
-      auditLog={(auditLog ?? []) as Parameters<typeof AdminClient>[0]['auditLog']}
+      statusHistory={(statusHistory ?? []) as Parameters<typeof AdminClient>[0]['statusHistory']}
       userDomains={(userDomains ?? []) as Parameters<typeof AdminClient>[0]['userDomains']}
+      auditLogEntries={(auditLogEntries ?? []) as Parameters<typeof AdminClient>[0]['auditLogEntries']}
       isSuperAdmin={roleName === 'super_admin'}
     />
   );

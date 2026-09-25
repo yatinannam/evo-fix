@@ -1,29 +1,43 @@
-import { createEmpDashServerClient } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { NotesClient } from '@/components/emp-dash/notes-client';
 import type { EmpProfile, EmpTask, EmpPersonalNote } from '@/lib/supabase/types';
 
 export default async function NotesPage() {
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) redirect('/emp-dash/login');
 
-  const { data: profile } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCachedProfile(user.id);
   if (!profile) redirect('/emp-dash/login');
 
-  // Fetch notes visible to this user (RLS handles visibility including restrictive deny)
-  const { data: notes, error: notesErr } = await supabase
-    .from('emp_personal_notes')
-    .select(`
-      *,
-      about_profile:emp_profiles!about_profile_id(id, full_name),
-      task:emp_tasks!task_id(id, title)
-    `)
-    .order('created_at', { ascending: false });
+  const supabase = await createEmpDashServerClient();
+
+  // notes, profiles (for "about" dropdown), and tasks (for linking) are all
+  // independent given user.id — batch them.
+  const [
+    { data: notes, error: notesErr },
+    { data: profiles },
+    { data: tasks },
+  ] = await Promise.all([
+    // RLS handles visibility including the restrictive "never visible to subject" deny
+    supabase
+      .from('emp_personal_notes')
+      .select(`
+        *,
+        about_profile:emp_profiles!about_profile_id(id, full_name),
+        task:emp_tasks!task_id(id, title)
+      `)
+      .order('created_at', { ascending: false }),
+    // Only show members the user can write notes about
+    supabase.from('emp_profiles').select('id, full_name').neq('id', user.id).order('full_name'),
+    // Tasks the user is involved with for linking
+    supabase
+      .from('emp_tasks')
+      .select('id, title')
+      .or(`created_by.eq.${user.id},emp_task_assignees.profile_id.eq.${user.id}`)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
 
   if (notesErr) {
     return (
@@ -36,21 +50,6 @@ export default async function NotesPage() {
       </div>
     );
   }
-
-  // Profiles for "about" dropdown — only show members the user can write notes about
-  const { data: profiles } = await supabase
-    .from('emp_profiles')
-    .select('id, full_name')
-    .neq('id', user.id)
-    .order('full_name');
-
-  // Tasks the user is involved with for linking
-  const { data: tasks } = await supabase
-    .from('emp_tasks')
-    .select('id, title')
-    .or(`created_by.eq.${user.id},emp_task_assignees.profile_id.eq.${user.id}`)
-    .order('created_at', { ascending: false })
-    .limit(100);
 
   return (
     <NotesClient

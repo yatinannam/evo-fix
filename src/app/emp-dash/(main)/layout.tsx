@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createEmpDashServerClient, getCachedUser } from '@/lib/supabase/server';
+import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { EmpDashSidebar } from '@/components/emp-dash/sidebar';
 import { NotificationBell } from '@/components/emp-dash/notification-bell';
 import type { EmpProfile, EmpRole, EmpUserDomain, EmpDomain, EmpNotification } from '@/lib/supabase/types';
@@ -20,30 +20,19 @@ interface LayoutData {
 }
 
 async function getLayoutData(): Promise<LayoutData | null> {
-  const supabase = await createEmpDashServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCachedUser();
   if (!user) return null;
 
-  const { data: profile, error: profileErr } = await supabase
-    .from('emp_profiles')
-    .select('*, emp_roles(name)')
-    .eq('id', user.id)
-    .single();
+  const profile = await getCachedProfile(user.id);
+  if (!profile) return null;
 
-  if (profileErr || !profile) return null;
+  const supabase = await createEmpDashServerClient();
 
-  const { data: userDomains } = await supabase
-    .from('emp_user_domains')
-    .select('*, emp_domains(id, name, slug)')
-    .eq('profile_id', user.id);
-
-  // Fetch recent notifications for the bell — limit 50, unread first
-  const { data: notifications } = await supabase
-    .from('emp_notifications')
-    .select('*')
-    .eq('profile_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(50);
+  // userDomains and notifications are both independent given user.id — batch them.
+  const [{ data: userDomains }, { data: notifications }] = await Promise.all([
+    supabase.from('emp_user_domains').select('*, emp_domains(id, name, slug)').eq('profile_id', user.id),
+    supabase.from('emp_notifications').select('*').eq('profile_id', user.id).order('created_at', { ascending: false }).limit(50),
+  ]);
 
   return {
     profile: profile as LayoutData['profile'],

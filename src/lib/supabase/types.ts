@@ -99,6 +99,7 @@ export interface Database {
           custom_fields: Json;
           reviewing_by: string | null;
           reviewing_since: string | null;
+          status_change_comment: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -116,6 +117,7 @@ export interface Database {
           custom_fields?: Json;
           reviewing_by?: string | null;
           reviewing_since?: string | null;
+          status_change_comment?: string | null;
           created_by: string;
           created_at?: string;
           updated_at?: string;
@@ -133,6 +135,7 @@ export interface Database {
           custom_fields?: Json;
           reviewing_by?: string | null;
           reviewing_since?: string | null;
+          status_change_comment?: string | null;
           updated_at?: string;
         };
       };
