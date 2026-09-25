@@ -5,7 +5,7 @@
 export type TaskStatus = 'draft' | 'not_started' | 'in_progress' | 'submitted_for_review' | 'completed';
 export type RoleName   = 'super_admin' | 'admin' | 'domain_head' | 'employee';
 export type RoleInDomain = 'head' | 'member';
-export type ChannelType  = 'domain' | 'dm';
+export type ChannelType  = 'domain' | 'dm' | 'group';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type FieldType = 'text' | 'table' | 'select' | 'date' | 'checklist' | 'url' | 'keyvalue' | 'textarea' | 'multiselect' | 'number';
 export type NoteVisibility = 'private' | 'upward';
@@ -40,6 +40,7 @@ export interface Database {
           full_name: string;
           email: string;
           avatar_url: string | null;
+          position: string | null;
           role_id: string;
           created_by: string | null;
           created_at: string;
@@ -50,6 +51,7 @@ export interface Database {
           full_name: string;
           email: string;
           avatar_url?: string | null;
+          position?: string | null;
           role_id: string;
           created_by?: string | null;
           created_at?: string;
@@ -60,6 +62,7 @@ export interface Database {
           full_name?: string;
           email?: string;
           avatar_url?: string | null;
+          position?: string | null;
           role_id?: string;
           created_by?: string | null;
           updated_at?: string;

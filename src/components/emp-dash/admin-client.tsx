@@ -3,6 +3,8 @@
 
 import { useState, useTransition } from 'react';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
+import { createDomainAction } from '@/app/emp-dash/actions';
+import { PersonCombobox } from './person-combobox';
 import type { EmpDomain, EmpProfile, EmpRole, AuditAction } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
 
@@ -78,7 +80,7 @@ const selectStyle: React.CSSProperties = {
 };
 
 export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHistory, userDomains, auditLogEntries, isSuperAdmin }: AdminClientProps) {
-  const [tab, setTab] = useState<'domain-map' | 'user-domains' | 'status-history' | 'audit-log'>('domain-map');
+  const [tab, setTab] = useState<'domain-map' | 'user-domains' | 'domains' | 'status-history' | 'audit-log'>('domain-map');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -89,6 +91,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
   const [newMemberProfileId, setNewMemberProfileId] = useState('');
   const [newMemberDomainId, setNewMemberDomainId]   = useState(domains[0]?.id ?? '');
   const [newMemberRole, setNewMemberRole] = useState<'head' | 'member'>('member');
+  const [newDomainName, setNewDomainName] = useState('');
 
   const adminAndAbove = adminProfiles.filter(p => p.emp_roles.name === 'admin' || p.emp_roles.name === 'super_admin');
 
@@ -135,9 +138,20 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
     });
   }
 
+  function createDomain() {
+    if (!newDomainName.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createDomainAction(newDomainName);
+      if (result?.error) feedback(result.error, true);
+      else { feedback('Domain created'); setNewDomainName(''); router.refresh(); }
+    });
+  }
+
   const TAB_ITEMS = [
     { key: 'domain-map' as const, label: 'Domain → Admin' },
     { key: 'user-domains' as const, label: 'Domain Members' },
+    { key: 'domains' as const, label: 'Domains' },
     { key: 'status-history' as const, label: 'Status Changes' },
     { key: 'audit-log' as const, label: 'Audit Log' },
   ];
@@ -202,10 +216,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
             </div>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Admin</label>
-              <select value={newAdminId} onChange={e => setNewAdminId(e.target.value)} style={selectStyle}>
-                <option value="">Select admin…</option>
-                {adminAndAbove.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
+              <PersonCombobox people={adminAndAbove} value={newAdminId} onChange={setNewAdminId} emptyOptionLabel="Select admin…" />
             </div>
             <button onClick={addDomainAdmin} disabled={isPending || !newAdminId} id="add-domain-admin-btn" style={addBtnStyle}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(249,115,22,0.15)'}
@@ -265,10 +276,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
           }}>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Person</label>
-              <select value={newMemberProfileId} onChange={e => setNewMemberProfileId(e.target.value)} style={selectStyle}>
-                <option value="">Select person…</option>
-                {adminProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </select>
+              <PersonCombobox people={adminProfiles} value={newMemberProfileId} onChange={setNewMemberProfileId} emptyOptionLabel="Select person…" />
             </div>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Domain</label>
@@ -330,6 +338,60 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Domains tab */}
+      {tab === 'domains' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+          <p style={{ fontSize:'13px', color:'#6b7280' }}>
+            Create a new domain — it gets its own channel and task-domain option immediately. Its custom task fields start empty and can be configured later.
+          </p>
+
+          <div style={{
+            display:'flex', gap:'12px', alignItems:'flex-end',
+            background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)',
+            borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)',
+            padding:'16px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
+          }}>
+            <div style={{ flex:1 }}>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Domain name</label>
+              <input
+                value={newDomainName}
+                onChange={e => setNewDomainName(e.target.value)}
+                placeholder="e.g. Customer Success"
+                style={selectStyle}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createDomain(); } }}
+              />
+            </div>
+            <button onClick={createDomain} disabled={isPending || !newDomainName.trim()} id="create-domain-btn" style={addBtnStyle}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(249,115,22,0.15)'}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(249,115,22,0.1)'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create Domain
+            </button>
+          </div>
+
+          <div style={{ background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)', borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)', overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}>
+            <table style={{ width:'100%', fontSize:'13px', borderCollapse:'collapse' }}>
+              <thead>
+                <tr style={{ background:'rgba(249,250,251,0.8)' }}>
+                  <th style={{ padding:'12px 20px', textAlign:'left', fontSize:'10px', fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em' }}>Name</th>
+                  <th style={{ padding:'12px 20px', textAlign:'left', fontSize:'10px', fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em' }}>Slug</th>
+                </tr>
+              </thead>
+              <tbody>
+                {domains.length === 0 && <tr><td colSpan={2} style={{ padding:'32px 20px', textAlign:'center', color:'#9ca3af' }}>No domains yet.</td></tr>}
+                {domains.map(d => (
+                  <tr key={d.id} style={{ borderTop:'1px solid rgba(0,0,0,0.05)' }}>
+                    <td style={{ padding:'12px 20px', fontWeight:600, color:'#111' }}>{d.name}</td>
+                    <td style={{ padding:'12px 20px', color:'#9ca3af', fontSize:'12px' }}>{d.slug}</td>
                   </tr>
                 ))}
               </tbody>

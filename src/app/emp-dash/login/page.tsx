@@ -138,8 +138,9 @@ export default function EmpDashLoginPage() {
           </form>
         </div>
 
-        <p style={{ textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'20px' }}>
-          🔒 No public sign-up. Contact your Admin to get access.
+        <p style={{ textAlign:'center', fontSize:'12px', color:'#9ca3af', marginTop:'20px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          No public sign-up. Contact your Admin to get access.
         </p>
       </div>
 

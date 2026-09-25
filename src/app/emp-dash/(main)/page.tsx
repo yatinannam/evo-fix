@@ -74,8 +74,6 @@ export default async function EmpDashMyDayPage() {
   const awaitingReview: TaskWithProfile[] = isReviewer ? ((awaitingReviewResult.data ?? []) as TaskWithProfile[]) : [];
 
   const myTasksList = (myTasks ?? []) as unknown as TaskWithDomain[];
-  const hour = new Date().getHours();
-  const emoji = hour < 12 ? '🌅' : hour < 17 ? '☀️' : '🌙';
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'28px' }}>
@@ -95,11 +93,11 @@ export default async function EmpDashMyDayPage() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'16px' }}>
           <div>
             <div style={{ fontSize:'28px', fontWeight:800, color:'#111', letterSpacing:'-0.5px', marginBottom:'4px' }}>
-              {greeting(profile.full_name)} {emoji}
+              {greeting(profile.full_name)}
             </div>
             <p style={{ fontSize:'15px', color:'#6b7280' }}>
               {myTasksList.length === 0
-                ? "You're all caught up! Enjoy the quiet. 🎉"
+                ? "You're all caught up! Enjoy the quiet."
                 : `You have ${myTasksList.length} active task${myTasksList.length !== 1 ? 's' : ''} today.`}
             </p>
           </div>
@@ -145,7 +143,10 @@ export default async function EmpDashMyDayPage() {
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
                   {overdue && (
-                    <span style={{ fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>⚠ Overdue</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>
+                      <WarningIcon />
+                      Overdue
+                    </span>
                   )}
                   <span style={{ fontSize:'11px', fontWeight:600, padding:'3px 10px', borderRadius:'8px', background:sm?.badge, color:sm?.badgeText }}>{sm?.label}</span>
                   <span style={{ fontSize:'12px', color:'#9ca3af', minWidth:'50px', textAlign:'right' }}>{fmt(task.deadline)}</span>
@@ -184,7 +185,12 @@ export default async function EmpDashMyDayPage() {
                     </div>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                    {stale && <span style={{ fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>⚠ Overdue</span>}
+                    {stale && (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>
+                        <WarningIcon />
+                        Overdue
+                      </span>
+                    )}
                     <span style={{ fontSize:'11px', fontWeight:700, color:'#d97706', background:'#fffbeb', padding:'3px 10px', borderRadius:'8px', border:'1px solid rgba(245,158,11,0.2)' }}>Review →</span>
                   </div>
                 </div>
@@ -229,6 +235,12 @@ export default async function EmpDashMyDayPage() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function WarningIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  );
+}
 
 function Stat({ n, label, color }: { n: number; label: string; color: string }) {
   return (

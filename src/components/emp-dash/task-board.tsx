@@ -91,7 +91,12 @@ function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'l
             <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px' }}>{task.emp_domains.name}</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
-            {stale && <span style={{ fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>⚠ Overdue</span>}
+            {stale && (
+              <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', fontSize:'11px', color:'#dc2626', background:'#fff1f2', padding:'2px 8px', borderRadius:'6px', border:'1px solid #fecdd3', fontWeight:600 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Overdue
+              </span>
+            )}
             <span style={{ fontSize:'11px', fontWeight:600, padding:'3px 10px', borderRadius:'8px', background:sm?.bg, color:sm?.color }}>{sm?.label}</span>
             <span style={{ fontSize:'12px', color:'#9ca3af', minWidth:'50px', textAlign:'right' }}>{formatDate(task.deadline)}</span>
           </div>
@@ -116,7 +121,9 @@ function TaskCard({ task, mode }: { task: TaskWithRelations; mode: 'kanban' | 'l
         {/* Top row: priority dot + domain */}
         <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px' }}>
           <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:PRIORITY_DOT[task.priority], flexShrink:0 }} />
-          {stale && <span style={{ fontSize:'10px', color:'#dc2626' }}>⚠</span>}
+          {stale && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          )}
           <span style={{ fontSize:'10px', color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:600 }}>{task.emp_domains.name}</span>
         </div>
         <div style={{

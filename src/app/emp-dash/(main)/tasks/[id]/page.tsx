@@ -130,7 +130,8 @@ export default async function TaskDetailPage({ params }: PageProps) {
               color:'#dc2626', background:'#fff1f2', border:'1px solid #fecdd3',
               display:'inline-flex', alignItems:'center', gap:'4px',
             }}>
-              ⚠ Awaiting review 48h+
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Awaiting review 48h+
             </span>
           )}
         </div>
@@ -300,8 +301,13 @@ export default async function TaskDetailPage({ params }: PageProps) {
               borderRadius:'16px', border: lockIsStale ? '1px solid #fecdd3' : '1px solid rgba(249,115,22,0.15)',
               padding:'14px 16px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
             }}>
-              <div style={{ fontSize:'11px', fontWeight:700, color: lockIsStale ? '#dc2626' : '#d97706', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px' }}>
-                {lockIsStale ? '⚠ Stale Review Lock' : '🔒 Under Review'}
+              <div style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', fontWeight:700, color: lockIsStale ? '#dc2626' : '#d97706', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px' }}>
+                {lockIsStale ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                )}
+                {lockIsStale ? 'Stale Review Lock' : 'Under Review'}
               </div>
               <p style={{ fontSize:'12px', color:'#6b7280', margin:0, lineHeight:1.5 }}>
                 {isReviewer ? 'You are reviewing this task.' : `${reviewerName ?? 'A domain head'} is reviewing.`}

@@ -213,7 +213,10 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
           <div style={{ overflowY:'auto', maxHeight:'400px' }}>
             {notifications.length === 0 ? (
               <div style={{ padding:'40px 20px', textAlign:'center' }}>
-                <div style={{ fontSize:'28px', marginBottom:'8px' }}>🔔</div>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', margin:'0 auto 8px' }}>
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
                 <p style={{ fontSize:'13px', color:'#9ca3af', margin:0 }}>You're all caught up!</p>
               </div>
             ) : (

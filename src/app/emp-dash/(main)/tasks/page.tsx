@@ -139,7 +139,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
       {/* Empty */}
       {!tasksErr && tasks.length === 0 && (
         <div style={{ textAlign:'center', padding:'64px 0', color:'#9ca3af', fontSize:'14px' }}>
-          {canCreateTask ? '🚀 No tasks yet. Create the first one!' : 'No tasks assigned to your domains yet.'}
+          {canCreateTask ? 'No tasks yet. Create the first one!' : 'No tasks assigned to your domains yet.'}
         </div>
       )}
 

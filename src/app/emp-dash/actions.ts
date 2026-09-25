@@ -635,3 +635,114 @@ export async function changeProfileRoleAction(profileId: string, newRoleId: stri
   revalidatePath('/emp-dash/people');
   return { success: true };
 }
+
+// ── Update a profile's position/title (Admin+ only) ───────────────────────────
+
+export async function updateProfilePositionAction(profileId: string, position: string) {
+  const supabase = await createEmpDashServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const actorProfile = await getActorProfile(supabase, user.id);
+  const actorRole = actorProfile?.emp_roles?.name;
+  if (actorRole !== 'admin' && actorRole !== 'super_admin') {
+    return { error: 'Only Admins can edit a profile' };
+  }
+
+  const { error } = await supabase
+    .from('emp_profiles')
+    .update({ position: position.trim() || null })
+    .eq('id', profileId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/emp-dash/people');
+  return { success: true };
+}
+
+// ── Create a domain (Admin+ only) ─────────────────────────────────────────────
+// Also creates the domain's channel (so it auto-appears in Messages once
+// members join it) and an empty field-template row (custom fields for a new
+// domain default to none until an Admin edits the template directly).
+
+export async function createDomainAction(name: string) {
+  const supabase = await createEmpDashServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const actorProfile = await getActorProfile(supabase, user.id);
+  const actorRole = actorProfile?.emp_roles?.name;
+  if (actorRole !== 'admin' && actorRole !== 'super_admin') {
+    return { error: 'Only Admins can create domains' };
+  }
+
+  const trimmedName = name.trim();
+  if (!trimmedName) return { error: 'Domain name is required' };
+
+  const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!slug) return { error: 'Domain name must contain at least one letter or number' };
+
+  const admin = createEmpDashAdminClient();
+
+  const { data: domain, error: domainErr } = await admin
+    .from('emp_domains')
+    .insert({ name: trimmedName, slug })
+    .select('id')
+    .single();
+  if (domainErr || !domain) return { error: domainErr?.message ?? 'Failed to create domain (the name may already be in use)' };
+
+  await admin.from('emp_channels').insert({ domain_id: domain.id, type: 'domain', name: null });
+  await admin.from('emp_domain_field_templates').insert({ domain_id: domain.id, schema: [] });
+
+  revalidatePath('/emp-dash/admin');
+  revalidatePath('/emp-dash/tasks');
+  return { success: true };
+}
+
+// ── Create a named group channel (Admin+ or any Domain Head) ─────────────────
+// Uses the service-role client after an app-layer permission check — mirrors
+// createProfileAction's pattern. Not tied to a single domain, so it can't
+// piggyback on is_head_or_above_for_domain(); the check here is simply
+// "admin+, or head of at least one domain."
+
+export async function createGroupChannelAction(name: string, memberProfileIds: string[]) {
+  const supabase = await createEmpDashServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const trimmedName = name.trim();
+  if (!trimmedName) return { error: 'Channel name is required' };
+
+  const actorProfile = await getActorProfile(supabase, user.id);
+  const actorRole = actorProfile?.emp_roles?.name;
+  const isAdminPlus = actorRole === 'admin' || actorRole === 'super_admin';
+
+  if (!isAdminPlus) {
+    const { data: headRows } = await supabase
+      .from('emp_user_domains')
+      .select('domain_id')
+      .eq('profile_id', user.id)
+      .eq('role_in_domain', 'head')
+      .limit(1);
+    if (!headRows || headRows.length === 0) {
+      return { error: 'Only Admins or Domain Heads can create a channel' };
+    }
+  }
+
+  const admin = createEmpDashAdminClient();
+
+  const { data: channel, error: channelErr } = await admin
+    .from('emp_channels')
+    .insert({ type: 'group', name: trimmedName, domain_id: null })
+    .select('id')
+    .single();
+  if (channelErr || !channel) return { error: channelErr?.message ?? 'Failed to create channel' };
+
+  const memberIds = Array.from(new Set([user.id, ...memberProfileIds]));
+  const { error: membersErr } = await admin
+    .from('emp_channel_members')
+    .insert(memberIds.map(profile_id => ({ channel_id: channel.id, profile_id })));
+  if (membersErr) return { error: membersErr.message };
+
+  revalidatePath('/emp-dash/messages');
+  return { success: true, channel_id: channel.id };
+}

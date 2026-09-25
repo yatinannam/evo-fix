@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createProfileAction, changeProfileRoleAction } from '@/app/emp-dash/actions';
-import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain } from '@/lib/supabase/types';
+import { createProfileAction, changeProfileRoleAction, updateProfilePositionAction } from '@/app/emp-dash/actions';
+import { getEmpDashBrowserClient } from '@/lib/supabase/client';
+import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, RoleInDomain } from '@/lib/supabase/types';
 
 type ProfileWithRole = EmpProfile & { emp_roles: Pick<EmpRole, 'name'> };
 type UserDomainWithDomain = EmpUserDomain & { emp_domains: Pick<EmpDomain, 'id' | 'name' | 'slug'> };
@@ -84,11 +85,16 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     setPendingFormData(null);
   }
 
-  // ── Change an existing profile's role ───────────────────────────────────────
+  // ── Person detail / edit panel ────────────────────────────────────────────
 
-  const [editingRoleFor, setEditingRoleFor] = useState<string | null>(null);
+  const [viewingPersonId, setViewingPersonId] = useState<string | null>(null);
   const [editRoleId, setEditRoleId] = useState('');
-  const [roleError, setRoleError] = useState<string | null>(null);
+  const [positionDraft, setPositionDraft] = useState('');
+  const [newDomainId, setNewDomainId] = useState(allDomains[0]?.id ?? '');
+  const [newDomainRole, setNewDomainRole] = useState<RoleInDomain>('member');
+  const [panelError, setPanelError] = useState<string | null>(null);
+
+  const viewingPerson = profiles.find(p => p.id === viewingPersonId) ?? null;
 
   function canEditRole(person: ProfileWithRole) {
     if (!isAdminPlus) return false;
@@ -97,20 +103,60 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     return person.emp_roles.name !== 'admin' && person.emp_roles.name !== 'super_admin';
   }
 
-  function startEditRole(person: ProfileWithRole) {
-    setRoleError(null);
-    setEditingRoleFor(person.id);
-    const currentAllowed = allowedRoles.some(r => r.name === person.emp_roles.name);
-    setEditRoleId(currentAllowed ? (allRoles.find(r => r.name === person.emp_roles.name)?.id ?? '') : (allowedRoles[0]?.id ?? ''));
+  function openPersonPanel(person: ProfileWithRole) {
+    setPanelError(null);
+    setViewingPersonId(person.id);
+    setPositionDraft(person.position ?? '');
+    setEditRoleId(allRoles.find(r => r.name === person.emp_roles.name)?.id ?? '');
+    setNewDomainId(allDomains[0]?.id ?? '');
+    setNewDomainRole('member');
   }
 
-  function saveRoleChange(profileId: string) {
-    if (!editRoleId) return;
-    setRoleError(null);
+  function closePersonPanel() {
+    setViewingPersonId(null);
+    setPanelError(null);
+  }
+
+  function saveRoleChange() {
+    if (!viewingPerson || !editRoleId) return;
+    setPanelError(null);
     startTransition(async () => {
-      const result = await changeProfileRoleAction(profileId, editRoleId);
-      if (result?.error) { setRoleError(result.error); }
-      else { setEditingRoleFor(null); router.refresh(); }
+      const result = await changeProfileRoleAction(viewingPerson.id, editRoleId);
+      if (result?.error) { setPanelError(result.error); }
+      else { router.refresh(); }
+    });
+  }
+
+  function savePosition() {
+    if (!viewingPerson) return;
+    setPanelError(null);
+    startTransition(async () => {
+      const result = await updateProfilePositionAction(viewingPerson.id, positionDraft);
+      if (result?.error) { setPanelError(result.error); }
+      else { router.refresh(); }
+    });
+  }
+
+  function addDomainMembership() {
+    if (!viewingPerson || !newDomainId) return;
+    setPanelError(null);
+    startTransition(async () => {
+      const supabase = getEmpDashBrowserClient();
+      const { error: err } = await supabase.from('emp_user_domains').insert({
+        profile_id: viewingPerson.id, domain_id: newDomainId, role_in_domain: newDomainRole,
+      });
+      if (err) setPanelError(err.message);
+      else router.refresh();
+    });
+  }
+
+  function removeDomainMembership(userDomainId: string) {
+    setPanelError(null);
+    startTransition(async () => {
+      const supabase = getEmpDashBrowserClient();
+      const { error: err } = await supabase.from('emp_user_domains').delete().eq('id', userDomainId);
+      if (err) setPanelError(err.message);
+      else router.refresh();
     });
   }
 
@@ -177,15 +223,16 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
           const ini = getInitials(person.full_name);
           const rm = ROLE_META[person.emp_roles.name] ?? ROLE_META.employee;
           return (
-            <div key={person.id} style={{
+            <button key={person.id} type="button" onClick={() => openPersonPanel(person)} style={{
               background:'rgba(255,255,255,0.72)', backdropFilter:'blur(8px)',
               borderRadius:'16px', border:'1px solid rgba(255,255,255,0.8)',
               padding:'20px', boxShadow:'0 1px 4px rgba(0,0,0,0.05)',
               transition:'box-shadow 0.15s, transform 0.1s',
-              cursor:'default',
+              cursor:'pointer', textAlign:'left', width:'100%',
+              fontFamily:"'Outfit','Inter',system-ui,sans-serif",
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'; (e.currentTarget as HTMLDivElement).style.transform='translateY(-2px)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow='0 1px 4px rgba(0,0,0,0.05)'; (e.currentTarget as HTMLDivElement).style.transform='translateY(0)'; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'; (e.currentTarget as HTMLButtonElement).style.transform='translateY(-2px)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow='0 1px 4px rgba(0,0,0,0.05)'; (e.currentTarget as HTMLButtonElement).style.transform='translateY(0)'; }}
             >
               <div style={{ display:'flex', alignItems:'flex-start', gap:'12px' }}>
                 <div style={{
@@ -198,58 +245,18 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:'14px', fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.full_name}</div>
-                  <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{person.email}</div>
-
-                  {editingRoleFor === person.id ? (
-                    <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'8px' }}>
-                      <select
-                        value={editRoleId}
-                        onChange={e => setEditRoleId(e.target.value)}
-                        style={{
-                          fontSize:'11px', padding:'3px 6px', borderRadius:'6px',
-                          border:'1px solid rgba(0,0,0,0.12)', background:'white', color:'#111',
-                          fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-                        }}
-                      >
-                        {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
-                      </select>
-                      <button type="button" onClick={() => saveRoleChange(person.id)} disabled={isPending}
-                        title="Save"
-                        style={{ width:'22px', height:'22px', borderRadius:'6px', border:'none', cursor:'pointer', background:'rgba(16,185,129,0.12)', color:'#059669', display:'flex', alignItems:'center', justifyContent:'center' }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </button>
-                      <button type="button" onClick={() => setEditingRoleFor(null)} disabled={isPending}
-                        title="Cancel"
-                        style={{ width:'22px', height:'22px', borderRadius:'6px', border:'none', cursor:'pointer', background:'rgba(0,0,0,0.05)', color:'#9ca3af', display:'flex', alignItems:'center', justifyContent:'center' }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'8px' }}>
-                      <span style={{
-                        display:'inline-block',
-                        fontSize:'10px', fontWeight:600, padding:'2px 8px', borderRadius:'6px',
-                        color:rm.color, background:rm.bg, border:`1px solid ${rm.border}`,
-                      }}>
-                        {rm.label}
-                      </span>
-                      {canEditRole(person) && (
-                        <button type="button" onClick={() => startEditRole(person)}
-                          title="Change role"
-                          style={{ width:'18px', height:'18px', borderRadius:'5px', border:'none', cursor:'pointer', background:'transparent', color:'#d1d5db', display:'flex', alignItems:'center', justifyContent:'center', transition:'color 0.12s' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color='#9ca3af'}
-                          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color='#d1d5db'}
-                        >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {editingRoleFor === person.id && roleError && (
-                    <div role="alert" style={{ marginTop:'6px', fontSize:'11px', color:'#dc2626' }}>{roleError}</div>
-                  )}
+                  <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {person.position || person.email}
+                  </div>
+                  <div style={{ marginTop:'8px' }}>
+                    <span style={{
+                      display:'inline-block',
+                      fontSize:'10px', fontWeight:600, padding:'2px 8px', borderRadius:'6px',
+                      color:rm.color, background:rm.bg, border:`1px solid ${rm.border}`,
+                    }}>
+                      {rm.label}
+                    </span>
+                  </div>
                 </div>
               </div>
               {domains.length > 0 && (
@@ -268,7 +275,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                   ))}
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
         {filtered.length === 0 && (
@@ -387,6 +394,178 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 </div>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Person detail / edit panel */}
+      {viewingPerson && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:50,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
+          padding:'16px',
+        }}>
+          <div style={{
+            width:'100%', maxWidth:'480px', maxHeight:'calc(100vh - 48px)',
+            background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
+            borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
+            border:'1px solid rgba(255,255,255,0.7)',
+            fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+            display:'flex', flexDirection:'column', overflow:'hidden',
+          }}>
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', gap:'14px', padding:'24px', borderBottom:'1px solid rgba(0,0,0,0.06)', flexShrink:0 }}>
+              <div style={{
+                width:'48px', height:'48px', borderRadius:'14px', flexShrink:0,
+                background:'linear-gradient(135deg,#ffedd5,#ffe4e6)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:'16px', fontWeight:700, color:'#f97316',
+              }}>
+                {getInitials(viewingPerson.full_name)}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:'16px', fontWeight:700, color:'#111' }}>{viewingPerson.full_name}</div>
+                <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px' }}>{viewingPerson.email}</div>
+              </div>
+              <button onClick={closePersonPanel}
+                style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding:'24px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
+              {/* Position */}
+              <div>
+                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                  Position / Title
+                </label>
+                {isAdminPlus ? (
+                  <div style={{ display:'flex', gap:'8px' }}>
+                    <input
+                      value={positionDraft}
+                      onChange={e => setPositionDraft(e.target.value)}
+                      placeholder="e.g. Senior Backend Engineer"
+                      style={inputStyle}
+                    />
+                    <button type="button" onClick={savePosition} disabled={isPending}
+                      style={{
+                        padding:'0 16px', borderRadius:'10px', border:'none', flexShrink:0,
+                        background:'rgba(249,115,22,0.1)', color:'#f97316', fontWeight:600, fontSize:'13px',
+                        cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <p style={{ fontSize:'14px', color:'#374151', margin:0 }}>{viewingPerson.position || '—'}</p>
+                )}
+              </div>
+
+              {/* Role */}
+              <div>
+                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                  Role
+                </label>
+                {canEditRole(viewingPerson) ? (
+                  <div style={{ display:'flex', gap:'8px' }}>
+                    <select value={editRoleId} onChange={e => setEditRoleId(e.target.value)} style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
+                      {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
+                    </select>
+                    <button type="button" onClick={saveRoleChange} disabled={isPending}
+                      style={{
+                        padding:'0 16px', borderRadius:'10px', border:'none', flexShrink:0,
+                        background:'rgba(249,115,22,0.1)', color:'#f97316', fontWeight:600, fontSize:'13px',
+                        cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{
+                    display:'inline-block',
+                    fontSize:'11px', fontWeight:600, padding:'4px 10px', borderRadius:'6px',
+                    color:(ROLE_META[viewingPerson.emp_roles.name] ?? ROLE_META.employee).color,
+                    background:(ROLE_META[viewingPerson.emp_roles.name] ?? ROLE_META.employee).bg,
+                    border:`1px solid ${(ROLE_META[viewingPerson.emp_roles.name] ?? ROLE_META.employee).border}`,
+                  }}>
+                    {(ROLE_META[viewingPerson.emp_roles.name] ?? ROLE_META.employee).label}
+                  </span>
+                )}
+                {viewingPerson.id === currentUserId && isAdminPlus && (
+                  <p style={{ fontSize:'11px', color:'#9ca3af', marginTop:'6px' }}>You cannot change your own role.</p>
+                )}
+              </div>
+
+              {/* Domain access */}
+              <div>
+                <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                  Domain Access
+                </label>
+                <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginBottom: isAdminPlus ? '10px' : 0 }}>
+                  {domainsForProfile(viewingPerson.id).length === 0 && (
+                    <p style={{ fontSize:'13px', color:'#9ca3af', margin:0 }}>Not a member of any domain.</p>
+                  )}
+                  {domainsForProfile(viewingPerson.id).map(ud => (
+                    <div key={ud.domain_id} style={{
+                      display:'flex', alignItems:'center', gap:'8px',
+                      padding:'8px 12px', borderRadius:'10px',
+                      background:'rgba(0,0,0,0.02)', border:'1px solid rgba(0,0,0,0.06)',
+                    }}>
+                      <span style={{ flex:1, fontSize:'13px', color:'#374151', fontWeight:500 }}>{ud.emp_domains.name}</span>
+                      <span style={{
+                        fontSize:'10px', padding:'2px 8px', borderRadius:'6px', fontWeight:600,
+                        background: ud.role_in_domain === 'head' ? '#fffbeb' : '#f9fafb',
+                        color: ud.role_in_domain === 'head' ? '#d97706' : '#6b7280',
+                        border: `1px solid ${ud.role_in_domain === 'head' ? '#fde68a' : '#e5e7eb'}`,
+                      }}>
+                        {ud.role_in_domain}
+                      </span>
+                      {isAdminPlus && (
+                        <button type="button" onClick={() => removeDomainMembership(ud.id)} disabled={isPending}
+                          style={{ background:'none', border:'none', cursor:'pointer', color:'#d1d5db', padding:'2px' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color='#ef4444'}
+                          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color='#d1d5db'}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {isAdminPlus && allDomains.length > 0 && (
+                  <div style={{ display:'flex', gap:'6px' }}>
+                    <select value={newDomainId} onChange={e => setNewDomainId(e.target.value)} style={{ ...inputStyle, flex:1, WebkitAppearance:'none', appearance:'none', fontSize:'13px', padding:'8px 10px' }}>
+                      {allDomains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                    <select value={newDomainRole} onChange={e => setNewDomainRole(e.target.value as RoleInDomain)} style={{ ...inputStyle, width:'110px', WebkitAppearance:'none', appearance:'none', fontSize:'13px', padding:'8px 10px' }}>
+                      <option value="member">Member</option>
+                      <option value="head">Head</option>
+                    </select>
+                    <button type="button" onClick={addDomainMembership} disabled={isPending}
+                      style={{
+                        padding:'0 14px', borderRadius:'10px', border:'none', flexShrink:0,
+                        background:'rgba(249,115,22,0.1)', color:'#f97316', fontWeight:600, fontSize:'13px',
+                        cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {panelError && (
+                <div role="alert" style={{ padding:'10px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>
+                  {panelError}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

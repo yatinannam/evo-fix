@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createPersonalNoteAction, deletePersonalNoteAction } from '@/app/emp-dash/actions';
+import { PersonCombobox } from './person-combobox';
 import type { EmpPersonalNote, EmpProfile, EmpTask, NoteVisibility } from '@/lib/supabase/types';
 
 type NoteWithRelations = EmpPersonalNote & {
@@ -118,19 +119,15 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
 
       {/* Filter */}
       {profiles.length > 0 && (
-        <div style={{ position:'relative', maxWidth:'280px' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-          </svg>
-          <select
+        <div style={{ maxWidth:'280px' }}>
+          <PersonCombobox
+            id="notes-filter-person"
+            people={profiles}
             value={filterProfile}
-            onChange={e => setFilterProfile(e.target.value)}
-            style={{ ...selectStyle, paddingLeft:'34px', maxWidth:'280px' }}
-          >
-            <option value="">All people</option>
-            {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-          </select>
+            onChange={setFilterProfile}
+            emptyOptionLabel="All people"
+            placeholder="Filter by person…"
+          />
         </div>
       )}
 
@@ -146,7 +143,10 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
           textAlign:'center', padding:'60px 20px',
           background:'rgba(255,255,255,0.5)', borderRadius:'16px', border:'1px dashed rgba(0,0,0,0.1)',
         }}>
-          <div style={{ fontSize:'32px', marginBottom:'12px' }}>📝</div>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', margin:'0 auto 12px' }}>
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
           <p style={{ fontSize:'14px', color:'#9ca3af', margin:0 }}>No notes yet. Create one to get started.</p>
         </div>
       ) : (
@@ -207,10 +207,13 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
                   <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                     About Person (optional)
                   </label>
-                  <select id="note-about" value={aboutProfileId} onChange={e => setAboutProfileId(e.target.value)} style={selectStyle}>
-                    <option value="">— Nobody specific</option>
-                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
+                  <PersonCombobox
+                    id="note-about"
+                    people={profiles}
+                    value={aboutProfileId}
+                    onChange={setAboutProfileId}
+                    emptyOptionLabel="Nobody specific"
+                  />
                 </div>
 
                 <div>
@@ -236,13 +239,19 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
                       style={{
                         flex:1, padding:'8px 12px', borderRadius:'10px', fontSize:'13px', fontWeight:500,
                         cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                        display:'inline-flex', alignItems:'center', justifyContent:'center', gap:'6px',
                         border: visibility === v ? '1.5px solid #f97316' : '1px solid rgba(0,0,0,0.1)',
                         background: visibility === v ? 'rgba(249,115,22,0.06)' : 'white',
                         color: visibility === v ? '#f97316' : '#6b7280',
                         transition:'all 0.12s',
                       }}
                     >
-                      {v === 'private' ? '🔒 Private' : '⬆ Upward'}
+                      {v === 'private' ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                      )}
+                      {v === 'private' ? 'Private' : 'Upward'}
                     </button>
                   ))}
                 </div>
@@ -328,21 +337,29 @@ function NoteCard({ note, isOwn, onDelete, isPending }: {
             )}
             {note.task && (
               <span style={{
+                display:'inline-flex', alignItems:'center', gap:'4px',
                 fontSize:'11px', padding:'2px 8px', borderRadius:'6px',
                 background:'rgba(249,115,22,0.08)', color:'#f97316', fontWeight:500,
                 border:'1px solid rgba(249,115,22,0.15)',
               }}>
-                📋 {note.task.title}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                {note.task.title}
               </span>
             )}
             <span style={{
+              display:'inline-flex', alignItems:'center', gap:'4px',
               fontSize:'10px', padding:'2px 8px', borderRadius:'6px',
               background: note.visibility_scope === 'private' ? '#f9fafb' : '#fffbeb',
               color: note.visibility_scope === 'private' ? '#6b7280' : '#d97706',
               border: `1px solid ${note.visibility_scope === 'private' ? '#e5e7eb' : '#fde68a'}`,
               fontWeight:600,
             }}>
-              {note.visibility_scope === 'private' ? '🔒 Private' : '⬆ Upward'}
+              {note.visibility_scope === 'private' ? (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              )}
+              {note.visibility_scope === 'private' ? 'Private' : 'Upward'}
             </span>
           </div>
 

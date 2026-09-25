@@ -84,23 +84,24 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:50,
-      display:'flex', alignItems:'flex-start', justifyContent:'center',
-      paddingTop:'32px', paddingBottom:'32px', paddingLeft:'16px', paddingRight:'16px',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      padding:'24px 16px',
       background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
-      overflowY:'auto',
     }}>
       <div style={{
-        width:'100%', maxWidth:'640px',
+        width:'100%', maxWidth:'640px', maxHeight:'calc(100vh - 48px)',
         background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
         borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
         border:'1px solid rgba(255,255,255,0.7)',
         fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+        display:'flex', flexDirection:'column',
         overflow:'hidden',
       }}>
-        {/* Header */}
+        {/* Header — pinned */}
         <div style={{
           display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'22px 24px', borderBottom:'1px solid rgba(0,0,0,0.06)',
+          flexShrink:0,
         }}>
           <div>
             <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Task</h2>
@@ -117,7 +118,10 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           )}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding:'24px', display:'flex', flexDirection:'column', gap:'20px' }}>
+        <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', minHeight:0, flex:1 }}>
+        {/* Scrollable body — the header and footer below stay pinned regardless
+            of how tall the domain-specific fields make this form */}
+        <div style={{ padding:'24px', display:'flex', flexDirection:'column', gap:'20px', overflowY:'auto', minHeight:0 }}>
           {/* Title */}
           <div>
             <label htmlFor="task-title" style={labelStyle}>Title <span style={{ color:'#ef4444' }}>*</span></label>
@@ -251,7 +255,14 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           {domainFields.length > 0 && (
             <DomainFieldRenderer fields={domainFields} value={customFields} onChange={setCustomFields} />
           )}
+        </div>
 
+        {/* Footer — pinned, always reachable regardless of form length */}
+        <div style={{
+          display:'flex', flexDirection:'column', gap:'12px',
+          padding:'16px 24px', borderTop:'1px solid rgba(0,0,0,0.06)',
+          flexShrink:0,
+        }}>
           {error && (
             <div role="alert" style={{
               padding:'12px 16px', borderRadius:'12px',
@@ -261,10 +272,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
             </div>
           )}
 
-          <div style={{
-            display:'flex', gap:'12px', paddingTop:'4px',
-            borderTop:'1px solid rgba(0,0,0,0.06)',
-          }}>
+          <div style={{ display:'flex', gap:'12px' }}>
             {onClose && (
               <button type="button" onClick={onClose} style={{
                 flex:1, padding:'11px', borderRadius:'12px',
@@ -299,6 +307,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
               )}
             </button>
           </div>
+        </div>
         </form>
       </div>
     </div>
