@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { DomainFieldRenderer } from './domain-field-renderer';
 import { FileUploader } from './file-uploader';
+import { Combobox } from './combobox';
 import { createTaskAction } from '@/app/emp-dash/actions';
 import type { EmpDomain, EmpProfile, FieldDef, Priority } from '@/lib/supabase/types';
 
@@ -140,11 +141,13 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
             <div>
               <label htmlFor="task-domain" style={labelStyle}>Domain <span style={{ color:'#ef4444' }}>*</span></label>
-              <select id="task-domain" value={domainId}
-                onChange={e => { setDomainId(e.target.value); setCustomFields({}); }}
-                style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
-                {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <Combobox
+                id="task-domain"
+                options={domains.map(d => ({ id: d.id, label: d.name }))}
+                value={domainId}
+                onChange={v => { setDomainId(v); setCustomFields({}); }}
+                hideEmptyOption
+              />
             </div>
             <div>
               <label style={labelStyle}>Priority</label>

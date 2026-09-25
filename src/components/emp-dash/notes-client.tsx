@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createPersonalNoteAction, deletePersonalNoteAction } from '@/app/emp-dash/actions';
-import { PersonCombobox } from './person-combobox';
+import { Combobox, PersonCombobox } from './combobox';
 import type { EmpPersonalNote, EmpProfile, EmpTask, NoteVisibility } from '@/lib/supabase/types';
 
 type NoteWithRelations = EmpPersonalNote & {
@@ -18,15 +18,10 @@ interface NotesClientProps {
 }
 
 const inputStyle: React.CSSProperties = {
-  width:'100%', padding:'10px 14px', borderRadius:'10px',
+  width:'100%', padding:'10px 14px', borderRadius:'10px', boxSizing:'border-box',
   border:'1px solid rgba(0,0,0,0.1)', background:'white',
   fontSize:'14px', color:'#111', outline:'none',
   fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  WebkitAppearance:'none', appearance:'none',
 };
 
 function formatDate(iso: string) {
@@ -220,10 +215,13 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
                   <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                     Linked Task (optional)
                   </label>
-                  <select id="note-task" value={taskId} onChange={e => setTaskId(e.target.value)} style={selectStyle}>
-                    <option value="">— No task</option>
-                    {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                  </select>
+                  <Combobox
+                    id="note-task"
+                    options={tasks.map(t => ({ id: t.id, label: t.title }))}
+                    value={taskId}
+                    onChange={setTaskId}
+                    emptyOptionLabel="No task"
+                  />
                 </div>
               </div>
 

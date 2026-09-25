@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Combobox } from './combobox';
 import type { FieldDef } from '@/lib/supabase/types';
 
 interface DomainFieldRendererProps {
@@ -83,12 +84,13 @@ function DateField({ def, val, onChange, readonly }: { def: FieldDef; val: unkno
 
 function SelectField({ def, val, onChange, readonly }: { def: FieldDef; val: unknown; onChange: (v: unknown) => void; readonly?: boolean }) {
   return (
-    <select value={String(val ?? '')} onChange={e => onChange(e.target.value)}
-      disabled={readonly} id={`field-${def.key}`}
-      style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none', background: readonly ? '#f9fafb' : 'rgba(255,255,255,0.8)' }}>
-      <option value="">Select…</option>
-      {(def.options ?? []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-    </select>
+    <Combobox
+      id={`field-${def.key}`}
+      options={(def.options ?? []).map(opt => ({ id: opt, label: opt }))}
+      value={String(val ?? '')}
+      onChange={v => onChange(v)}
+      disabled={readonly}
+    />
   );
 }
 

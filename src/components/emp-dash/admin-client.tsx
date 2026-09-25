@@ -4,7 +4,7 @@
 import { useState, useTransition } from 'react';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
 import { createDomainAction } from '@/app/emp-dash/actions';
-import { PersonCombobox } from './person-combobox';
+import { Combobox, PersonCombobox } from './combobox';
 import type { EmpDomain, EmpProfile, EmpRole, AuditAction } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
 
@@ -71,12 +71,11 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
-const selectStyle: React.CSSProperties = {
-  width:'100%', padding:'8px 12px', borderRadius:'10px',
+const inputStyle: React.CSSProperties = {
+  width:'100%', padding:'8px 12px', borderRadius:'10px', boxSizing:'border-box',
   border:'1px solid rgba(0,0,0,0.1)', background:'white',
   fontSize:'13px', color:'#111', outline:'none',
   fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-  WebkitAppearance:'none', appearance:'none',
 };
 
 export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHistory, userDomains, auditLogEntries, isSuperAdmin }: AdminClientProps) {
@@ -157,7 +156,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
   ];
 
   const addBtnStyle: React.CSSProperties = {
-    display:'inline-flex', alignItems:'center', gap:'6px',
+    display:'inline-flex', alignItems:'center', gap:'6px', flexShrink:0,
     padding:'8px 16px', borderRadius:'10px',
     background:'rgba(249,115,22,0.1)', color:'#f97316',
     border:'1px solid rgba(249,115,22,0.2)',
@@ -210,9 +209,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
           }}>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Domain</label>
-              <select value={newDomainId} onChange={e => setNewDomainId(e.target.value)} style={selectStyle}>
-                {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <Combobox options={domains.map(d => ({ id: d.id, label: d.name }))} value={newDomainId} onChange={setNewDomainId} emptyOptionLabel="Select domain…" />
             </div>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Admin</label>
@@ -280,16 +277,16 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
             </div>
             <div style={{ flex:1 }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Domain</label>
-              <select value={newMemberDomainId} onChange={e => setNewMemberDomainId(e.target.value)} style={selectStyle}>
-                {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+              <Combobox options={domains.map(d => ({ id: d.id, label: d.name }))} value={newMemberDomainId} onChange={setNewMemberDomainId} emptyOptionLabel="Select domain…" />
             </div>
-            <div>
+            <div style={{ width:'140px' }}>
               <label style={{ display:'block', fontSize:'11px', fontWeight:600, color:'#9ca3af', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Role</label>
-              <select value={newMemberRole} onChange={e => setNewMemberRole(e.target.value as 'head' | 'member')} style={selectStyle}>
-                <option value="member">Member</option>
-                <option value="head">Head</option>
-              </select>
+              <Combobox
+                options={[{ id:'member', label:'Member' }, { id:'head', label:'Head' }]}
+                value={newMemberRole}
+                onChange={v => setNewMemberRole(v as 'head' | 'member')}
+                hideEmptyOption
+              />
             </div>
             <button onClick={addUserDomain} disabled={isPending || !newMemberProfileId} id="add-domain-member-btn" style={addBtnStyle}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(249,115,22,0.15)'}
@@ -365,7 +362,7 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
                 value={newDomainName}
                 onChange={e => setNewDomainName(e.target.value)}
                 placeholder="e.g. Customer Success"
-                style={selectStyle}
+                style={inputStyle}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createDomain(); } }}
               />
             </div>

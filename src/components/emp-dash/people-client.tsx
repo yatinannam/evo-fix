@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProfileAction, changeProfileRoleAction, updateProfilePositionAction } from '@/app/emp-dash/actions';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
-import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, RoleInDomain } from '@/lib/supabase/types';
+import { Combobox } from './combobox';
+import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, RoleInDomain, Database } from '@/lib/supabase/types';
 
 type ProfileWithRole = EmpProfile & { emp_roles: Pick<EmpRole, 'name'> };
 type UserDomainWithDomain = EmpUserDomain & { emp_domains: Pick<EmpDomain, 'id' | 'name' | 'slug'> };
@@ -62,6 +63,9 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     e.preventDefault();
     setError(null);
     const fd = new FormData(e.currentTarget);
+    // Combobox is a button, not a native form field, so role_id doesn't
+    // auto-populate into FormData the way a <select name="role_id"> would.
+    fd.set('role_id', roleId);
 
     if (isSuperAdminSelected && !confirmSuperAdmin) {
       // Super Admin is the most powerful role in the system — require an
@@ -142,9 +146,14 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     setPanelError(null);
     startTransition(async () => {
       const supabase = getEmpDashBrowserClient();
-      const { error: err } = await supabase.from('emp_user_domains').insert({
+      // TS resolves .from('emp_user_domains').insert()'s parameter to `never`
+      // here specifically (a supabase-js generic-inference limitation on this
+      // table, not a real type error — the object below is independently
+      // verified against the same Database['...']['Insert'] type one line up).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: err } = await (supabase.from('emp_user_domains').insert as any)({
         profile_id: viewingPerson.id, domain_id: newDomainId, role_in_domain: newDomainRole,
-      });
+      } satisfies Database['public']['Tables']['emp_user_domains']['Insert']);
       if (err) setPanelError(err.message);
       else router.refresh();
     });
@@ -161,7 +170,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
   }
 
   const inputStyle: React.CSSProperties = {
-    width:'100%', padding:'10px 14px', borderRadius:'10px',
+    width:'100%', padding:'10px 14px', borderRadius:'10px', boxSizing:'border-box',
     border:'1px solid rgba(0,0,0,0.12)', background:'white',
     fontSize:'14px', color:'#111', outline:'none',
     fontFamily:"'Outfit','Inter',system-ui,sans-serif",
@@ -324,11 +333,13 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
               </div>
               <div>
                 <label htmlFor="invite-role" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Role</label>
-                <select id="invite-role" name="role_id" required value={roleId}
-                  onChange={e => { setRoleId(e.target.value); setConfirmSuperAdmin(false); }}
-                  style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
-                  {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
-                </select>
+                <Combobox
+                  id="invite-role"
+                  options={allowedRoles.map(r => ({ id: r.id, label: ROLE_META[r.name]?.label ?? r.name }))}
+                  value={roleId}
+                  onChange={v => { setRoleId(v); setConfirmSuperAdmin(false); }}
+                  hideEmptyOption
+                />
               </div>
 
               {error && <div role="alert" style={{ padding:'10px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>{error}</div>}
@@ -471,9 +482,14 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 </label>
                 {canEditRole(viewingPerson) ? (
                   <div style={{ display:'flex', gap:'8px' }}>
-                    <select value={editRoleId} onChange={e => setEditRoleId(e.target.value)} style={{ ...inputStyle, WebkitAppearance:'none', appearance:'none' }}>
-                      {allowedRoles.map(r => <option key={r.id} value={r.id}>{ROLE_META[r.name]?.label ?? r.name}</option>)}
-                    </select>
+                    <div style={{ flex:1 }}>
+                      <Combobox
+                        options={allowedRoles.map(r => ({ id: r.id, label: ROLE_META[r.name]?.label ?? r.name }))}
+                        value={editRoleId}
+                        onChange={setEditRoleId}
+                        hideEmptyOption
+                      />
+                    </div>
                     <button type="button" onClick={saveRoleChange} disabled={isPending}
                       style={{
                         padding:'0 16px', borderRadius:'10px', border:'none', flexShrink:0,
@@ -539,13 +555,22 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
 
                 {isAdminPlus && allDomains.length > 0 && (
                   <div style={{ display:'flex', gap:'6px' }}>
-                    <select value={newDomainId} onChange={e => setNewDomainId(e.target.value)} style={{ ...inputStyle, flex:1, WebkitAppearance:'none', appearance:'none', fontSize:'13px', padding:'8px 10px' }}>
-                      {allDomains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                    <select value={newDomainRole} onChange={e => setNewDomainRole(e.target.value as RoleInDomain)} style={{ ...inputStyle, width:'110px', WebkitAppearance:'none', appearance:'none', fontSize:'13px', padding:'8px 10px' }}>
-                      <option value="member">Member</option>
-                      <option value="head">Head</option>
-                    </select>
+                    <div style={{ flex:1 }}>
+                      <Combobox
+                        options={allDomains.map(d => ({ id: d.id, label: d.name }))}
+                        value={newDomainId}
+                        onChange={setNewDomainId}
+                        emptyOptionLabel="Select domain…"
+                      />
+                    </div>
+                    <div style={{ width:'120px' }}>
+                      <Combobox
+                        options={[{ id:'member', label:'Member' }, { id:'head', label:'Head' }]}
+                        value={newDomainRole}
+                        onChange={v => setNewDomainRole(v as RoleInDomain)}
+                        hideEmptyOption
+                      />
+                    </div>
                     <button type="button" onClick={addDomainMembership} disabled={isPending}
                       style={{
                         padding:'0 14px', borderRadius:'10px', border:'none', flexShrink:0,
