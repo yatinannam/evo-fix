@@ -16,6 +16,20 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Every emp-dash route reads cookies() to check auth, which forces Next.js
+  // to treat them as fully dynamic — by default that means zero client-side
+  // caching, so even revisiting a page you were just on re-runs every query
+  // from scratch. This lets a revisited dynamic page reuse the client cache
+  // for a short window instead. Experimental per Next.js's own docs; doesn't
+  // affect first-time page loads, and server actions still bust the cache
+  // for the pages they revalidatePath() immediately.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
+
   // Compress assets on Vercel edge
   compress: true,
 
