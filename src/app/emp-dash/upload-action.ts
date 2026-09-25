@@ -20,6 +20,16 @@ export async function saveFileMetadataAction(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated' };
 
+  // domainId is caller-supplied and was only ever trusted at face value —
+  // storage RLS derives the real access-control domain from the first path
+  // segment of storagePath, so a mismatch here wouldn't expose file
+  // content, but it would file the metadata row under the wrong domain's
+  // listing. storagePath is always built as `${domainId}/...` by the
+  // uploader (file-uploader.tsx), so cross-check them here.
+  if (storagePath.split('/')[0] !== domainId) {
+    return { error: 'domain_id does not match the upload path' };
+  }
+
   // Check for existing file with same path (for versioning)
   const { data: existing } = await supabase
     .from('emp_files')

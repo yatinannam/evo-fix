@@ -46,6 +46,8 @@ const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   domain_reassigned: 'reassigned a domain',
   task_created: 'created a task',
   status_changed: 'changed a task status',
+  domain_created: 'created a domain',
+  channel_created: 'created a channel',
 };
 
 function describeAuditTarget(entry: AuditLogRow): string {
@@ -60,6 +62,10 @@ function describeAuditTarget(entry: AuditLogRow): string {
       return `"${(t.title as string) ?? '—'}"`;
     case 'status_changed':
       return `${(t.from_status as string) ?? '—'} → ${(t.to_status as string) ?? '—'}`;
+    case 'domain_created':
+      return `"${(t.name as string) ?? '—'}"`;
+    case 'channel_created':
+      return `"${(t.name as string) ?? '—'}" (${(t.member_count as number) ?? '?'} members)`;
     case 'domain_reassigned':
       return '';
     default:

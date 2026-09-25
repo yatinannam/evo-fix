@@ -298,17 +298,17 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
           position:'fixed', inset:0, zIndex:50,
           display:'flex', alignItems:'center', justifyContent:'center',
           background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
-          padding:'16px',
+          padding:'24px 16px',
         }}>
           <div style={{
-            width:'100%', maxWidth:'440px',
+            width:'100%', maxWidth:'440px', maxHeight:'calc(100vh - 48px)',
             background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
             borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
             border:'1px solid rgba(255,255,255,0.7)',
-            padding:'28px',
             fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+            display:'flex', flexDirection:'column', overflow:'hidden',
           }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'24px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'28px 28px 0', flexShrink:0 }}>
               <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>Invite Team Member</h2>
               <button onClick={closeCreateModal}
                 style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', transition:'background 0.12s' }}
@@ -318,7 +318,8 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <form onSubmit={handleCreate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+            <form onSubmit={handleCreate} style={{ display:'flex', flexDirection:'column', minHeight:0, flex:1 }}>
+            <div style={{ padding:'20px 28px 28px', display:'flex', flexDirection:'column', gap:'16px', overflowY:'auto', minHeight:0, flex:1 }}>
               <div>
                 <label htmlFor="invite-name" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Full Name</label>
                 <input id="invite-name" name="full_name" required style={inputStyle} />
@@ -341,7 +342,9 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                   hideEmptyOption
                 />
               </div>
+            </div>
 
+            <div style={{ padding:'0 28px 28px', flexShrink:0, display:'flex', flexDirection:'column', gap:'12px' }}>
               {error && <div role="alert" style={{ padding:'10px 14px', borderRadius:'12px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>{error}</div>}
 
               {confirmSuperAdmin ? (
@@ -404,6 +407,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                   </button>
                 </div>
               )}
+            </div>
             </form>
           </div>
         </div>
@@ -445,7 +449,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
               </button>
             </div>
 
-            <div style={{ padding:'24px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px' }}>
+            <div style={{ padding:'24px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px', flex:1, minHeight:0 }}>
               {/* Position */}
               <div>
                 <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>

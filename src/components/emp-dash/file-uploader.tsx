@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
 import { saveFileMetadataAction } from '@/app/emp-dash/upload-action';
 import type { EmpFile } from '@/lib/supabase/types';
@@ -9,8 +10,6 @@ interface FileUploaderProps {
   domainId: string;
   taskId?: string | null;
   existingFiles?: EmpFile[];
-  onFileUploaded?: (file: EmpFile) => void;
-  onFileDeleted?: (fileId: string) => void;
   compact?: boolean; // smaller inline mode for use inside task thread
 }
 
@@ -46,7 +45,8 @@ function FileIcon({ mimeType }: { mimeType: string | null }) {
   );
 }
 
-export function FileUploader({ domainId, taskId, existingFiles = [], onFileUploaded, compact = false }: FileUploaderProps) {
+export function FileUploader({ domainId, taskId, existingFiles = [], compact = false }: FileUploaderProps) {
+  const router = useRouter();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +92,7 @@ export function FileUploader({ domainId, taskId, existingFiles = [], onFileUploa
 
     updateUpload(uploadId, { progress: 100, done: true });
     setTimeout(() => setUploads(prev => prev.filter(u => u.id !== uploadId)), 3000);
+    router.refresh(); // existingFiles is server-rendered — without this the new file doesn't appear until a manual reload
     return { success: true };
   }
 

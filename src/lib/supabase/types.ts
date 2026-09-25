@@ -10,7 +10,7 @@ export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type FieldType = 'text' | 'table' | 'select' | 'date' | 'checklist' | 'url' | 'keyvalue' | 'textarea' | 'multiselect' | 'number';
 export type NoteVisibility = 'private' | 'upward';
 export type NotificationType = 'task_assigned' | 'status_changed' | 'comment_added' | 'mention' | 'review_overdue' | 'review_claimed';
-export type AuditAction = 'profile_created' | 'role_changed' | 'super_admin_created' | 'domain_reassigned' | 'task_created' | 'status_changed';
+export type AuditAction = 'profile_created' | 'role_changed' | 'super_admin_created' | 'domain_reassigned' | 'task_created' | 'status_changed' | 'domain_created' | 'channel_created';
 
 export interface FieldDef {
   key: string;

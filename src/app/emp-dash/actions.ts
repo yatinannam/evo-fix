@@ -315,8 +315,14 @@ export async function addCommentAction(taskId: string, body: string) {
       });
     }
 
-    // Mention detection: @mentions in the body
-    const mentionedNames = body.match(/@[\w\s]+/g)?.map(m => m.slice(1).trim()) ?? [];
+    // Mention detection: @mentions in the body. The [\w\s]+ character class
+    // can never capture punctuation (commas, parens, etc.), so this can't
+    // reach the .in() filter as anything but plain names — still cap length
+    // and count defensively against a pathological single comment.
+    const mentionedNames = (body.match(/@[\w\s]+/g) ?? [])
+      .map(m => m.slice(1).trim())
+      .filter(n => n.length > 0 && n.length <= 100)
+      .slice(0, 20);
     if (mentionedNames.length > 0) {
       const { data: mentionedProfiles } = await supabase
         .from('emp_profiles')
@@ -693,6 +699,8 @@ export async function createDomainAction(name: string) {
   await admin.from('emp_channels').insert({ domain_id: domain.id, type: 'domain', name: null });
   await admin.from('emp_domain_field_templates').insert({ domain_id: domain.id, schema: [] });
 
+  await writeAuditLog(supabase, user.id, 'domain_created', { domain_id: domain.id, name: trimmedName, slug });
+
   revalidatePath('/emp-dash/admin');
   revalidatePath('/emp-dash/tasks');
   return { success: true };
@@ -741,7 +749,17 @@ export async function createGroupChannelAction(name: string, memberProfileIds: s
   const { error: membersErr } = await admin
     .from('emp_channel_members')
     .insert(memberIds.map(profile_id => ({ channel_id: channel.id, profile_id })));
-  if (membersErr) return { error: membersErr.message };
+  if (membersErr) {
+    // Roll back — an orphaned, memberless channel is otherwise permanent
+    // (invisible to everyone, since Messages only lists channels you're a
+    // member of, so nothing would ever surface or clean it up).
+    await admin.from('emp_channels').delete().eq('id', channel.id);
+    return { error: membersErr.message };
+  }
+
+  await writeAuditLog(supabase, user.id, 'channel_created', {
+    channel_id: channel.id, name: trimmedName, member_count: memberIds.length,
+  });
 
   revalidatePath('/emp-dash/messages');
   return { success: true, channel_id: channel.id };
