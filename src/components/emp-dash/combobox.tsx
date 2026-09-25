@@ -116,6 +116,7 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
       {open && coords && createPortal(
         <div
           ref={popupRef}
+          data-lenis-prevent
           style={{
             position:'fixed', top:coords.top, left:coords.left, width:coords.width, zIndex:1000,
             background:'white', borderRadius:'12px', border:'1px solid rgba(0,0,0,0.1)',

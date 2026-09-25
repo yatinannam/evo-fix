@@ -49,7 +49,7 @@ export default async function EmpDashLayout({ children }: { children: React.Reac
   const { profile, userDomains, notifications, userId } = data;
 
   return (
-    <div data-empdash style={{
+    <div data-empdash data-lenis-prevent style={{
       minHeight: '100vh',
       display: 'flex',
       background: 'radial-gradient(ellipse at 80% -10%, #ffedd5 0%, #fef3e2 20%, #faf8f5 50%, #f9f6ff 100%)',

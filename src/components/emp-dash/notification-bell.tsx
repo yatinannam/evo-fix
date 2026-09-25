@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
 import { markNotificationReadAction, markAllNotificationsReadAction } from '@/app/emp-dash/actions';
 import type { EmpNotification, NotificationType } from '@/lib/supabase/types';
@@ -73,11 +74,15 @@ function getNotificationText(n: EmpNotification): string {
   }
 }
 
+const PANEL_WIDTH = 360;
+
 export function NotificationBell({ initialNotifications, currentUserId }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<EmpNotification[]>(initialNotifications);
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [isPending, startTransition] = useTransition();
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const unread = notifications.filter(n => !n.read).length;
@@ -103,16 +108,41 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
     return () => { supabase.removeChannel(channel); };
   }, [currentUserId]);
 
-  // Close on outside click
+  // Close on outside click / scroll / resize. The panel is portaled to
+  // document.body (see render below) so it isn't clipped by the sidebar's
+  // own overflow:auto, and its position is clamped to the viewport so it
+  // never renders off-screen to the left of the narrow sidebar column.
   useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    function onScrollOrResize() { setOpen(false); }
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
   }, [open]);
+
+  function toggleOpen() {
+    if (open) { setOpen(false); return; }
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const left = Math.min(
+        Math.max(8, rect.right - PANEL_WIDTH),
+        window.innerWidth - PANEL_WIDTH - 8,
+      );
+      setCoords({ top: rect.bottom + 8, left });
+    }
+    setOpen(true);
+  }
 
   function handleClick(n: EmpNotification) {
     if (!n.read) {
@@ -133,11 +163,12 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
   }
 
   return (
-    <div ref={dropdownRef} style={{ position:'relative' }}>
+    <div style={{ position:'relative' }}>
       {/* Bell button */}
       <button
+        ref={buttonRef}
         id="notification-bell"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggleOpen}
         style={{
           width:'36px', height:'36px', borderRadius:'10px',
           display:'flex', alignItems:'center', justifyContent:'center',
@@ -177,15 +208,20 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
         )}
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div style={{
-          position:'absolute', top:'calc(100% + 8px)', right:0,
-          width:'360px', maxHeight:'480px',
+      {/* Dropdown — portaled to document.body so it can't be clipped by the
+          sidebar's own overflow:auto, and positioned/clamped from the
+          button's real screen coordinates so it never renders off-screen. */}
+      {open && coords && createPortal(
+        <div
+          ref={panelRef}
+          data-lenis-prevent
+          style={{
+          position:'fixed', top:coords.top, left:coords.left,
+          width:PANEL_WIDTH, maxHeight:'480px',
           background:'rgba(255,255,255,0.96)', backdropFilter:'blur(20px)',
           borderRadius:'16px', border:'1px solid rgba(0,0,0,0.08)',
           boxShadow:'0 16px 48px rgba(0,0,0,0.12)',
-          overflow:'hidden', zIndex:100,
+          overflow:'hidden', zIndex:1000,
           fontFamily:"'Outfit','Inter',system-ui,sans-serif",
         }}>
           {/* Header */}
@@ -217,7 +253,7 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
-                <p style={{ fontSize:'13px', color:'#9ca3af', margin:0 }}>You're all caught up!</p>
+                <p style={{ fontSize:'13px', color:'#9ca3af', margin:0 }}>You&apos;re all caught up!</p>
               </div>
             ) : (
               notifications.map(n => {
@@ -268,7 +304,8 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
