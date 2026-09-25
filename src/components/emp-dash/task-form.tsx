@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { DomainFieldRenderer } from './domain-field-renderer';
-import { FileUploader } from './file-uploader';
 import { Combobox } from './combobox';
+import { useEscapeToClose } from './use-escape-to-close';
 import { createTaskAction } from '@/app/emp-dash/actions';
 import type { EmpDomain, EmpProfile, FieldDef, Priority } from '@/lib/supabase/types';
 
@@ -38,6 +38,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFormProps) {
+  useEscapeToClose(true, onClose ?? (() => {}));
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [domainId, setDomainId] = useState(domains[0]?.id ?? '');
@@ -89,7 +90,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
       padding:'24px 16px',
       background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
     }}>
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="task-form-title" style={{
         width:'100%', maxWidth:'640px', maxHeight:'calc(100vh - 48px)',
         background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
         borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
@@ -105,7 +106,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           flexShrink:0,
         }}>
           <div>
-            <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Task</h2>
+            <h2 id="task-form-title" style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Task</h2>
             <p style={{ fontSize:'12px', color:'#9ca3af', margin:'2px 0 0' }}>Created as draft, published when saved</p>
           </div>
           {onClose && (

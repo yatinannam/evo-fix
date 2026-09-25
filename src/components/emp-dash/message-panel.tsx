@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
 import { createGroupChannelAction } from '@/app/emp-dash/actions';
+import { useEscapeToClose } from './use-escape-to-close';
 import type { EmpMessage, EmpChannel, EmpProfile } from '@/lib/supabase/types';
 
 type ChannelWithDomain = EmpChannel & { domain_name: string | null };
@@ -58,6 +59,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelMembers, setNewChannelMembers] = useState<string[]>([]);
   const [createError, setCreateError] = useState<string | null>(null);
+  useEscapeToClose(showCreateChannel, () => { setShowCreateChannel(false); setCreateError(null); });
 
   function toggleMember(id: string) {
     setNewChannelMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
@@ -311,7 +313,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
           background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
           padding:'16px',
         }}>
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-labelledby="channel-form-title" style={{
             width:'100%', maxWidth:'440px', maxHeight:'calc(100vh - 48px)',
             background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
             borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
@@ -320,7 +322,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
             display:'flex', flexDirection:'column', overflow:'hidden',
           }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'22px 24px', borderBottom:'1px solid rgba(0,0,0,0.06)', flexShrink:0 }}>
-              <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Channel</h2>
+              <h2 id="channel-form-title" style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Channel</h2>
               <button onClick={() => { setShowCreateChannel(false); setCreateError(null); }}
                 style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

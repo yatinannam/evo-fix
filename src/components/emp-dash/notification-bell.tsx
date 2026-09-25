@@ -121,11 +121,14 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
       setOpen(false);
     }
     function onScrollOrResize() { setOpen(false); }
+    function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); } }
     document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
     };
@@ -262,7 +265,10 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
                 return (
                   <div
                     key={n.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleClick(n)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(n); } }}
                     style={{
                       padding:'12px 16px',
                       display:'flex', alignItems:'flex-start', gap:'12px',

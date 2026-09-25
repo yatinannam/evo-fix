@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createProfileAction, changeProfileRoleAction, updateProfilePositionAction } from '@/app/emp-dash/actions';
 import { getEmpDashBrowserClient } from '@/lib/supabase/client';
 import { Combobox } from './combobox';
+import { useEscapeToClose } from './use-escape-to-close';
 import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, RoleInDomain, Database } from '@/lib/supabase/types';
 
 type ProfileWithRole = EmpProfile & { emp_roles: Pick<EmpRole, 'name'> };
@@ -35,6 +36,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  useEscapeToClose(showCreate, () => closeCreateModal());
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -92,7 +94,9 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
   // ── Person detail / edit panel ────────────────────────────────────────────
 
   const [viewingPersonId, setViewingPersonId] = useState<string | null>(null);
+  useEscapeToClose(!!viewingPersonId, () => closePersonPanel());
   const [editRoleId, setEditRoleId] = useState('');
+  const [confirmRoleSuperAdmin, setConfirmRoleSuperAdmin] = useState(false);
   const [positionDraft, setPositionDraft] = useState('');
   const [newDomainId, setNewDomainId] = useState(allDomains[0]?.id ?? '');
   const [newDomainRole, setNewDomainRole] = useState<RoleInDomain>('member');
@@ -112,6 +116,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
     setViewingPersonId(person.id);
     setPositionDraft(person.position ?? '');
     setEditRoleId(allRoles.find(r => r.name === person.emp_roles.name)?.id ?? '');
+    setConfirmRoleSuperAdmin(false);
     setNewDomainId(allDomains[0]?.id ?? '');
     setNewDomainRole('member');
   }
@@ -119,15 +124,28 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
   function closePersonPanel() {
     setViewingPersonId(null);
     setPanelError(null);
+    setConfirmRoleSuperAdmin(false);
   }
+
+  const editRoleName = allRoles.find(r => r.id === editRoleId)?.name;
+  const isPromotingToSuperAdmin = editRoleName === 'super_admin';
 
   function saveRoleChange() {
     if (!viewingPerson || !editRoleId) return;
     setPanelError(null);
+
+    if (isPromotingToSuperAdmin && !confirmRoleSuperAdmin) {
+      // Same principle as the create-profile flow — the most powerful role
+      // in the system needs an explicit second confirmation, whether
+      // granted at creation or via an edit.
+      setConfirmRoleSuperAdmin(true);
+      return;
+    }
+
     startTransition(async () => {
       const result = await changeProfileRoleAction(viewingPerson.id, editRoleId);
       if (result?.error) { setPanelError(result.error); }
-      else { router.refresh(); }
+      else { setConfirmRoleSuperAdmin(false); router.refresh(); }
     });
   }
 
@@ -315,7 +333,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
           background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
           padding:'24px 16px',
         }}>
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-labelledby="invite-form-title" style={{
             width:'100%', maxWidth:'440px', maxHeight:'calc(100vh - 48px)',
             background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
             borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
@@ -324,7 +342,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
             display:'flex', flexDirection:'column', overflow:'hidden',
           }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'28px 28px 0', flexShrink:0 }}>
-              <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>Invite Team Member</h2>
+              <h2 id="invite-form-title" style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>Invite Team Member</h2>
               <button onClick={closeCreateModal}
                 style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af', transition:'background 0.12s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='rgba(0,0,0,0.05)'}
@@ -436,7 +454,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
           background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
           padding:'16px',
         }}>
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-labelledby="person-panel-title" style={{
             width:'100%', maxWidth:'480px', maxHeight:'calc(100vh - 48px)',
             background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
             borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
@@ -455,7 +473,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                 {getInitials(viewingPerson.full_name)}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:'16px', fontWeight:700, color:'#111' }}>{viewingPerson.full_name}</div>
+                <div id="person-panel-title" style={{ fontSize:'16px', fontWeight:700, color:'#111' }}>{viewingPerson.full_name}</div>
                 <div style={{ fontSize:'12px', color:'#9ca3af', marginTop:'2px' }}>{viewingPerson.email}</div>
               </div>
               <button onClick={closePersonPanel}
@@ -500,26 +518,53 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
                   Role
                 </label>
                 {canEditRole(viewingPerson) ? (
-                  <div style={{ display:'flex', gap:'8px' }}>
-                    <div style={{ flex:1 }}>
-                      <Combobox
-                        options={allowedRoles.map(r => ({ id: r.id, label: ROLE_META[r.name]?.label ?? r.name }))}
-                        value={editRoleId}
-                        onChange={setEditRoleId}
-                        hideEmptyOption
-                      />
+                  confirmRoleSuperAdmin ? (
+                    <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                      <div style={{ padding:'10px 12px', borderRadius:'10px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#dc2626', fontSize:'12px', lineHeight:1.5 }}>
+                        You are about to promote {viewingPerson.full_name} to <strong>Super Admin</strong> — the most powerful role in the system.
+                      </div>
+                      <div style={{ display:'flex', gap:'8px' }}>
+                        <button type="button" onClick={() => setConfirmRoleSuperAdmin(false)}
+                          style={{
+                            flex:1, padding:'8px', borderRadius:'10px', border:'1px solid rgba(0,0,0,0.1)',
+                            background:'transparent', color:'#6b7280', fontSize:'13px', cursor:'pointer',
+                            fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                          }}>
+                          Go back
+                        </button>
+                        <button type="button" onClick={saveRoleChange} disabled={isPending}
+                          style={{
+                            flex:1, padding:'8px', borderRadius:'10px', border:'none',
+                            background:'linear-gradient(135deg,#dc2626,#f43f5e)', color:'white', fontWeight:600, fontSize:'13px',
+                            cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                            opacity: isPending ? 0.6 : 1,
+                          }}>
+                          {isPending ? 'Saving…' : 'Yes, promote'}
+                        </button>
+                      </div>
                     </div>
-                    <button type="button" onClick={saveRoleChange} disabled={isPending}
-                      style={{
-                        padding:'0 16px', borderRadius:'10px', border:'none', flexShrink:0,
-                        background:'rgba(249,115,22,0.1)', color:'#f97316', fontWeight:600, fontSize:'13px',
-                        cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-                        opacity: isPending ? 0.6 : 1,
-                      }}
-                    >
-                      Save
-                    </button>
-                  </div>
+                  ) : (
+                    <div style={{ display:'flex', gap:'8px' }}>
+                      <div style={{ flex:1 }}>
+                        <Combobox
+                          options={allowedRoles.map(r => ({ id: r.id, label: ROLE_META[r.name]?.label ?? r.name }))}
+                          value={editRoleId}
+                          onChange={setEditRoleId}
+                          hideEmptyOption
+                        />
+                      </div>
+                      <button type="button" onClick={saveRoleChange} disabled={isPending}
+                        style={{
+                          padding:'0 16px', borderRadius:'10px', border:'none', flexShrink:0,
+                          background:'rgba(249,115,22,0.1)', color:'#f97316', fontWeight:600, fontSize:'13px',
+                          cursor:'pointer', fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                          opacity: isPending ? 0.6 : 1,
+                        }}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <span style={{
                     display:'inline-block',

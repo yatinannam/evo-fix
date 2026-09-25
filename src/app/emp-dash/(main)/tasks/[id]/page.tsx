@@ -71,10 +71,10 @@ export default async function TaskDetailPage({ params }: PageProps) {
   const [
     { data: ud },
     reviewerResult,
-    { data: history },
-    { data: comments },
-    { data: milestones },
-    { data: files },
+    { data: history, error: historyErr },
+    { data: comments, error: commentsErr },
+    { data: milestones, error: milestonesErr },
+    { data: files, error: filesErr },
     { data: template },
   ] = await Promise.all([
     supabase.from('emp_user_domains').select('role_in_domain').eq('profile_id', user.id).eq('domain_id', taskDomainId).single(),
@@ -87,6 +87,16 @@ export default async function TaskDetailPage({ params }: PageProps) {
     supabase.from('emp_files').select('*').eq('task_id', id).order('created_at', { ascending: false }),
     supabase.from('emp_domain_field_templates').select('schema').eq('domain_id', taskDomainId).single(),
   ]);
+
+  // These are secondary panels — a failed fetch here shouldn't hide the
+  // whole task, but silently rendering "empty" is indistinguishable from a
+  // real empty state, so surface it instead.
+  const sectionLoadErrors = [
+    historyErr && 'activity history',
+    commentsErr && 'comments',
+    milestonesErr && 'milestones',
+    filesErr && 'files',
+  ].filter(Boolean) as string[];
 
   const isDomainHead = ud?.role_in_domain === 'head';
   const canVerify = isAdminPlus || isDomainHead;
@@ -146,6 +156,12 @@ export default async function TaskDetailPage({ params }: PageProps) {
           <span>{formatDate(task.created_at)}</span>
         </div>
       </div>
+
+      {sectionLoadErrors.length > 0 && (
+        <div role="alert" style={{ padding:'12px 16px', borderRadius:'14px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>
+          Failed to load {sectionLoadErrors.join(', ')} — please refresh.
+        </div>
+      )}
 
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'24px' }}>
         {/* Left — details */}

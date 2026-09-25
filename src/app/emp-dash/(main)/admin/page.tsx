@@ -1,7 +1,7 @@
 import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AdminClient } from '@/components/emp-dash/admin-client';
-import type { EmpProfile, EmpRole, EmpDomain, EmpUserDomain, EmpTaskHistory } from '@/lib/supabase/types';
+import type { EmpProfile, EmpRole, EmpDomain } from '@/lib/supabase/types';
 
 export default async function AdminPage() {
   const user = await getCachedUser();
@@ -17,12 +17,12 @@ export default async function AdminPage() {
   const supabase = await createEmpDashServerClient();
 
   const [
-    { data: domainAdminMap },
-    { data: domains },
-    { data: adminProfiles },
-    { data: statusHistory },
-    { data: userDomains },
-    { data: auditLogEntries },
+    { data: domainAdminMap, error: domainAdminMapErr },
+    { data: domains, error: domainsErr },
+    { data: adminProfiles, error: adminProfilesErr },
+    { data: statusHistory, error: statusHistoryErr },
+    { data: userDomains, error: userDomainsErr },
+    { data: auditLogEntries, error: auditLogErr },
   ] = await Promise.all([
     supabase.from('emp_domain_admin_map').select('*, emp_domains(name), emp_profiles!admin_profile_id(full_name, email)'),
     supabase.from('emp_domains').select('*').order('name'),
@@ -34,6 +34,15 @@ export default async function AdminPage() {
     // never see super_admin_created rows, super admins see everything.
     supabase.from('emp_audit_log').select('*, emp_profiles!actor_id(full_name)').order('created_at', { ascending: false }).limit(50),
   ]);
+
+  const loadErr = domainAdminMapErr || domainsErr || adminProfilesErr || statusHistoryErr || userDomainsErr || auditLogErr;
+  if (loadErr) {
+    return (
+      <div role="alert" style={{ padding:'12px 16px', borderRadius:'14px', background:'#fff1f2', border:'1px solid #fecdd3', color:'#e11d48', fontSize:'13px' }}>
+        Failed to load admin data: {loadErr.message}
+      </div>
+    );
+  }
 
   return (
     <AdminClient

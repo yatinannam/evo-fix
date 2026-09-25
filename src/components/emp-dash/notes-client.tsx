@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { createPersonalNoteAction, deletePersonalNoteAction } from '@/app/emp-dash/actions';
 import { Combobox, PersonCombobox } from './combobox';
+import { useEscapeToClose } from './use-escape-to-close';
 import type { EmpPersonalNote, EmpProfile, EmpTask, NoteVisibility } from '@/lib/supabase/types';
 
 type NoteWithRelations = EmpPersonalNote & {
@@ -41,6 +42,7 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
   const [filterProfile, setFilterProfile] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  useEscapeToClose(showCreate, () => { setShowCreate(false); setError(null); });
 
   const filtered = notes.filter(n => {
     if (filterProfile && n.about_profile_id !== filterProfile) return false;
@@ -166,7 +168,7 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
           background:'rgba(0,0,0,0.2)', backdropFilter:'blur(4px)',
           padding:'24px 16px',
         }}>
-          <div style={{
+          <div role="dialog" aria-modal="true" aria-labelledby="note-form-title" style={{
             width:'100%', maxWidth:'500px', maxHeight:'calc(100vh - 48px)',
             background:'rgba(255,255,255,0.92)', backdropFilter:'blur(20px)',
             borderRadius:'20px', boxShadow:'0 20px 60px rgba(0,0,0,0.15)',
@@ -175,7 +177,7 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
             display:'flex', flexDirection:'column', overflow:'hidden',
           }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'28px 28px 0', flexShrink:0 }}>
-              <h2 style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Personal Note</h2>
+              <h2 id="note-form-title" style={{ fontSize:'18px', fontWeight:700, color:'#111', margin:0 }}>New Personal Note</h2>
               <button onClick={() => { setShowCreate(false); setError(null); }}
                 style={{ width:'32px', height:'32px', borderRadius:'8px', border:'none', cursor:'pointer', background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:'#9ca3af' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
