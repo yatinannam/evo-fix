@@ -89,6 +89,15 @@ export function EmpDashSidebar({ profile, userDomains, notificationBell }: Sideb
   const pathname = usePathname();
   const router   = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Close the drawer on route change so tapping a nav item navigates AND closes
+  // it. Adjusted during render (not an effect) per React's "storing information
+  // from previous renders" pattern — avoids the extra render an effect causes.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setMobileOpen(false);
+  }
   const roleName = profile.emp_roles.name;
   const isAdminPlus = roleName === 'admin' || roleName === 'super_admin';
   const roleInfo = ROLE_LABEL[roleName] ?? ROLE_LABEL.employee;
@@ -110,18 +119,46 @@ export function EmpDashSidebar({ profile, userDomains, notificationBell }: Sideb
   }
 
   return (
-    <nav style={{
-      width: '240px', minWidth: '240px', height: '100vh',
-      position: 'sticky', top: 0,
-      display: 'flex', flexDirection: 'column',
-      background: 'rgba(255,255,255,0.75)',
-      backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-      borderRight: '1px solid rgba(0,0,0,0.07)',
-      boxShadow: '2px 0 20px rgba(0,0,0,0.04)',
-      padding: '0',
-      fontFamily: "'Outfit','Inter',system-ui,sans-serif",
-      zIndex: 50, overflowY: 'auto',
-    }}>
+    <>
+      {/* Mobile-only top bar: hamburger trigger + brand. Hidden on desktop via CSS. */}
+      <div className="ed-mobile-topbar" style={{
+        alignItems: 'center', gap: '10px', padding: '12px 16px',
+        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(0,0,0,0.07)',
+        fontFamily: "'Outfit','Inter',system-ui,sans-serif",
+      }}>
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={mobileOpen}
+          style={{
+            width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: '1px solid rgba(0,0,0,0.08)', cursor: 'pointer', color: '#374151',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div style={{ fontWeight: 700, fontSize: '14px', color: '#111' }}>EvoDoc Workspace</div>
+      </div>
+
+      {/* Backdrop — mobile only, dims content behind the open drawer */}
+      {mobileOpen && (
+        <div className="ed-sidebar-backdrop" onClick={() => setMobileOpen(false)} />
+      )}
+
+      <nav className={`ed-sidebar${mobileOpen ? ' ed-sidebar-open' : ''}`} style={{
+        width: '240px', minWidth: '240px', height: '100vh',
+        position: 'sticky', top: 0,
+        display: 'flex', flexDirection: 'column',
+        background: 'rgba(255,255,255,0.75)',
+        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        borderRight: '1px solid rgba(0,0,0,0.07)',
+        boxShadow: '2px 0 20px rgba(0,0,0,0.04)',
+        padding: '0',
+        fontFamily: "'Outfit','Inter',system-ui,sans-serif",
+        zIndex: 50, overflowY: 'auto',
+      }}>
       {/* Brand + notification bell */}
       <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
@@ -262,6 +299,7 @@ export function EmpDashSidebar({ profile, userDomains, notificationBell }: Sideb
           </button>
         </div>
       </div>
-    </nav>
+      </nav>
+    </>
   );
 }

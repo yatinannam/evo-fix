@@ -50,7 +50,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
     supabase.from('emp_domain_field_templates').select('domain_id, schema'),
   ]);
 
-  const userDomainIds = (userDomains ?? []).map(ud => ud.domain_id);
+  const headDomainIds = (userDomains ?? []).filter(ud => ud.role_in_domain === 'head').map(ud => ud.domain_id);
 
   const domainFieldMap: Record<string, FieldDef[]> = {};
   for (const t of templates ?? []) {
@@ -149,8 +149,8 @@ export default async function TasksPage({ searchParams }: PageProps) {
           tasks={tasks as Parameters<typeof TaskBoard>[0]['tasks']}
           viewMode={viewMode}
           currentUserId={user.id}
-          roleName={roleName}
-          userDomainIds={userDomainIds}
+          isAdminPlus={isAdminPlus}
+          headDomainIds={headDomainIds}
         />
       )}
     </div>

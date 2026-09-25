@@ -65,7 +65,7 @@ export default async function EmpDashLayout({ children }: { children: React.Reac
           />
         }
       />
-      <main style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingTop: '0px' }}>
+      <main className="ed-main-content" style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingTop: '0px' }}>
         <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '32px 32px 60px' }}>
           {children}
         </div>
