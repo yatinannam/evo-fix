@@ -112,7 +112,8 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
     startTransition(async () => {
       const supabase = getEmpDashBrowserClient();
       const { error: err } = await supabase.from('emp_domain_admin_map').insert({ domain_id: newDomainId, admin_profile_id: newAdminId });
-      if (err) feedback(err.message, true); else { feedback('Mapping added'); router.refresh(); }
+      if (err) feedback(err.code === '23505' ? 'That admin is already mapped to this domain.' : err.message, true);
+      else { feedback('Mapping added'); router.refresh(); }
     });
   }
 
@@ -131,15 +132,30 @@ export function AdminClient({ domainAdminMap, domains, adminProfiles, statusHist
       const { error: err } = await supabase.from('emp_user_domains').insert({
         profile_id: newMemberProfileId, domain_id: newMemberDomainId, role_in_domain: newMemberRole,
       });
-      if (err) feedback(err.message, true); else { feedback('Member added to domain'); router.refresh(); }
+      if (err) feedback(err.code === '23505' ? 'That person is already a member of this domain.' : err.message, true);
+      else { feedback('Member added to domain'); router.refresh(); }
     });
   }
 
   function removeUserDomain(id: string) {
+    // Look up who/where before deleting, so any review-claim lock they hold
+    // in that domain can be released too — otherwise a removed Domain Head
+    // is left holding a lock they can no longer reach the "Release Lock"
+    // button for (canVerify becomes false once they're no longer a head
+    // there), stuck until the 2h staleness window passes.
+    const row = userDomains.find(ud => ud.id === id);
     startTransition(async () => {
       const supabase = getEmpDashBrowserClient();
       const { error: err } = await supabase.from('emp_user_domains').delete().eq('id', id);
-      if (err) feedback(err.message, true); else { feedback('Removed'); router.refresh(); }
+      if (err) { feedback(err.message, true); return; }
+      if (row) {
+        await supabase.from('emp_tasks')
+          .update({ reviewing_by: null, reviewing_since: null })
+          .eq('domain_id', row.domain_id)
+          .eq('reviewing_by', row.profile_id);
+      }
+      feedback('Removed');
+      router.refresh();
     });
   }
 

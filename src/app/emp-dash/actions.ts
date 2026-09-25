@@ -86,7 +86,14 @@ export async function createTaskAction(formData: FormData) {
   if (assigneeIds.length > 0) {
     const assignees = assigneeIds.map(pid => ({ task_id: task.id, profile_id: pid, assigned_by: user.id }));
     const { error: assignErr } = await supabase.from('emp_task_assignees').insert(assignees);
-    if (assignErr) return { error: `Task created but failed to assign: ${assignErr.message}` };
+    if (assignErr) {
+      // Roll back — otherwise the task is permanently stuck in 'draft' with
+      // no recovery UI (TaskStatusPanel renders no actions for draft tasks,
+      // and it's invisible on Kanban since COLUMNS only covers the four
+      // post-draft statuses).
+      await supabase.from('emp_tasks').delete().eq('id', task.id);
+      return { error: `Failed to assign the task: ${assignErr.message}` };
+    }
   }
 
   // Transition draft → not_started now that it's set up.
@@ -97,7 +104,10 @@ export async function createTaskAction(formData: FormData) {
     .update({ status: 'not_started' })
     .eq('id', task.id);
 
-  if (transErr) return { error: `Task created but failed to publish: ${transErr.message}` };
+  if (transErr) {
+    await supabase.from('emp_tasks').delete().eq('id', task.id);
+    return { error: `Failed to publish the task: ${transErr.message}` };
+  }
 
   // Insert milestones
   if (milestonesData.length > 0) {
@@ -689,15 +699,24 @@ export async function createDomainAction(name: string) {
 
   const admin = createEmpDashAdminClient();
 
+  // Friendly pre-check instead of surfacing a raw unique-constraint error —
+  // e.g. naming a domain "App Dev" sanitizes to the already-seeded 'app_dev'.
+  const { data: existingDomain } = await admin.from('emp_domains').select('id').eq('slug', slug).maybeSingle();
+  if (existingDomain) return { error: 'A domain with a matching name already exists.' };
+
   const { data: domain, error: domainErr } = await admin
     .from('emp_domains')
     .insert({ name: trimmedName, slug })
     .select('id')
     .single();
-  if (domainErr || !domain) return { error: domainErr?.message ?? 'Failed to create domain (the name may already be in use)' };
+  if (domainErr || !domain) return { error: domainErr?.message ?? 'Failed to create domain' };
 
   await admin.from('emp_channels').insert({ domain_id: domain.id, type: 'domain', name: null });
   await admin.from('emp_domain_field_templates').insert({ domain_id: domain.id, schema: [] });
+  // Give the creating Admin ownership by default — otherwise a plain Admin
+  // (not Super Admin) could create a domain with no way to ever assign it
+  // an owner, since domain_admin_map writes are Super-Admin-only via RLS.
+  await admin.from('emp_domain_admin_map').insert({ domain_id: domain.id, admin_profile_id: user.id });
 
   await writeAuditLog(supabase, user.id, 'domain_created', { domain_id: domain.id, name: trimmedName, slug });
 

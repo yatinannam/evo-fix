@@ -154,18 +154,33 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
       const { error: err } = await (supabase.from('emp_user_domains').insert as any)({
         profile_id: viewingPerson.id, domain_id: newDomainId, role_in_domain: newDomainRole,
       } satisfies Database['public']['Tables']['emp_user_domains']['Insert']);
-      if (err) setPanelError(err.message);
+      if (err) setPanelError(err.code === '23505' ? `${viewingPerson.full_name} is already a member of that domain.` : err.message);
       else router.refresh();
     });
   }
 
   function removeDomainMembership(userDomainId: string) {
     setPanelError(null);
+    // Look up who/where before deleting, so any review-claim lock they hold
+    // in that domain can be released too — see removeUserDomain in
+    // admin-client.tsx for the full rationale.
+    const row = allUserDomains.find(ud => ud.id === userDomainId);
     startTransition(async () => {
       const supabase = getEmpDashBrowserClient();
       const { error: err } = await supabase.from('emp_user_domains').delete().eq('id', userDomainId);
-      if (err) setPanelError(err.message);
-      else router.refresh();
+      if (err) { setPanelError(err.message); return; }
+      if (row) {
+        // Same supabase-js generic-inference quirk as the emp_user_domains
+        // insert above — TS resolves .update()'s parameter to `never` for
+        // this table in this file specifically.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('emp_tasks').update as any)({
+          reviewing_by: null, reviewing_since: null,
+        } satisfies Database['public']['Tables']['emp_tasks']['Update'])
+          .eq('domain_id', row.domain_id)
+          .eq('reviewing_by', row.profile_id);
+      }
+      router.refresh();
     });
   }
 

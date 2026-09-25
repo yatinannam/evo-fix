@@ -32,29 +32,41 @@ interface ComboboxProps {
  * cards can never paint above a later sibling card, no matter how high its
  * z-index is (the z-index only wins *within* that stacking context). A
  * portal sidesteps this entirely by rendering outside all of it.
+ *
+ * Keyboard: ArrowDown/ArrowUp move the highlight (wrapping), Enter selects
+ * the highlighted row, Escape closes and returns focus to the trigger.
  */
 export function Combobox({ options, value, onChange, placeholder, emptyOptionLabel = 'Select…', id, disabled, hideEmptyOption }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [highlight, setHighlight] = useState(0);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const listboxId = id ? `${id}-listbox` : undefined;
 
   const selected = options.find(o => o.id === value);
   const filtered = query.trim()
     ? options.filter(o => o.label.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
+  // Rows in on-screen order: the pinned "clear" row (if shown) is index 0.
+  const rowIds = [...(hideEmptyOption ? [] : ['']), ...filtered.map(o => o.id)];
+  // Derived, not stored — clamped every render as filtering narrows rowIds,
+  // rather than synced via a setState-in-effect (an anti-pattern here).
+  const clampedHighlight = Math.min(highlight, Math.max(0, rowIds.length - 1));
 
   function openDropdown() {
     if (disabled) return;
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) setCoords({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setHighlight(Math.max(0, rowIds.findIndex(id => id === value)));
     setOpen(true);
   }
 
-  function close() {
+  function close(returnFocus = false) {
     setOpen(false);
     setQuery('');
+    if (returnFocus) buttonRef.current?.focus();
   }
 
   useEffect(() => {
@@ -78,7 +90,26 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
 
   function select(id: string) {
     onChange(id);
-    close();
+    close(true);
+  }
+
+  function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight(h => (rowIds.length === 0 ? 0 : (h + 1) % rowIds.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight(h => (rowIds.length === 0 ? 0 : (h - 1 + rowIds.length) % rowIds.length));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const id = rowIds[clampedHighlight];
+      if (id !== undefined) select(id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close(true);
+    } else if (e.key === 'Tab') {
+      close();
+    }
   }
 
   return (
@@ -88,6 +119,9 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
         type="button"
         id={id}
         disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
         onClick={() => (open ? close() : openDropdown())}
         style={{
           width:'100%', padding:'10px 12px', borderRadius:'10px', boxSizing:'border-box',
@@ -127,8 +161,13 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
           <div style={{ padding:'8px', borderBottom:'1px solid rgba(0,0,0,0.06)' }}>
             <input
               autoFocus
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listboxId}
+              aria-activedescendant={rowIds[clampedHighlight] ? `${listboxId}-opt-${rowIds[clampedHighlight]}` : undefined}
               value={query}
               onChange={e => setQuery(e.target.value)}
+              onKeyDown={onSearchKeyDown}
               placeholder={placeholder ?? 'Search…'}
               style={{
                 width:'100%', padding:'8px 10px', borderRadius:'8px',
@@ -138,19 +177,22 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
               }}
             />
           </div>
-          <div style={{ maxHeight:'220px', overflowY:'auto' }}>
+          <div role="listbox" id={listboxId} style={{ maxHeight:'220px', overflowY:'auto' }}>
             {!hideEmptyOption && (
               <button
                 type="button"
+                role="option"
+                id={listboxId ? `${listboxId}-opt-` : undefined}
+                aria-selected={value === ''}
                 onClick={() => select('')}
+                onMouseEnter={() => setHighlight(0)}
                 style={{
                   width:'100%', padding:'9px 14px', textAlign:'left', fontSize:'13px',
-                  border:'none', background: value === '' ? 'rgba(249,115,22,0.06)' : 'transparent',
-                  color: value === '' ? '#f97316' : '#9ca3af', cursor:'pointer',
+                  border:'none', cursor:'pointer',
+                  background: clampedHighlight === 0 ? 'rgba(0,0,0,0.05)' : value === '' ? 'rgba(249,115,22,0.06)' : 'transparent',
+                  color: value === '' ? '#f97316' : '#9ca3af',
                   fontFamily:"'Outfit','Inter',system-ui,sans-serif",
                 }}
-                onMouseEnter={e => { if (value !== '') (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.03)'; }}
-                onMouseLeave={e => { if (value !== '') (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
               >
                 {emptyOptionLabel}
               </button>
@@ -158,32 +200,38 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
             {filtered.length === 0 && (
               <div style={{ padding:'14px', textAlign:'center', fontSize:'12px', color:'#9ca3af' }}>No matches.</div>
             )}
-            {filtered.map(o => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => select(o.id)}
-                style={{
-                  width:'100%', padding:'8px 14px', textAlign:'left',
-                  display:'flex', alignItems:'center', gap:'8px',
-                  border:'none', background: value === o.id ? 'rgba(249,115,22,0.06)' : 'transparent',
-                  color: value === o.id ? '#f97316' : '#374151', cursor:'pointer', fontSize:'13px',
-                  fontFamily:"'Outfit','Inter',system-ui,sans-serif",
-                }}
-                onMouseEnter={e => { if (value !== o.id) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.03)'; }}
-                onMouseLeave={e => { if (value !== o.id) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-              >
-                {o.avatarText && (
-                  <span style={{
-                    width:'20px', height:'20px', borderRadius:'50%', flexShrink:0,
-                    background:'linear-gradient(135deg,#ffedd5,#ffe4e6)',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:'9px', fontWeight:700, color:'#f97316',
-                  }}>{o.avatarText}</span>
-                )}
-                {o.label}
-              </button>
-            ))}
+            {filtered.map((o, i) => {
+              const rowIndex = hideEmptyOption ? i : i + 1;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  role="option"
+                  id={listboxId ? `${listboxId}-opt-${o.id}` : undefined}
+                  aria-selected={value === o.id}
+                  onClick={() => select(o.id)}
+                  onMouseEnter={() => setHighlight(rowIndex)}
+                  style={{
+                    width:'100%', padding:'8px 14px', textAlign:'left',
+                    display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', fontSize:'13px',
+                    border:'none',
+                    background: clampedHighlight === rowIndex ? 'rgba(0,0,0,0.05)' : value === o.id ? 'rgba(249,115,22,0.06)' : 'transparent',
+                    color: value === o.id ? '#f97316' : '#374151',
+                    fontFamily:"'Outfit','Inter',system-ui,sans-serif",
+                  }}
+                >
+                  {o.avatarText && (
+                    <span style={{
+                      width:'20px', height:'20px', borderRadius:'50%', flexShrink:0,
+                      background:'linear-gradient(135deg,#ffedd5,#ffe4e6)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:'9px', fontWeight:700, color:'#f97316',
+                    }}>{o.avatarText}</span>
+                  )}
+                  {o.label}
+                </button>
+              );
+            })}
           </div>
         </div>,
         document.body,

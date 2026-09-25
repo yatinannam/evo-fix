@@ -2,6 +2,7 @@
 import { createEmpDashServerClient, getCachedUser, getCachedProfile } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { checkOverdueReviewsAction } from '@/app/emp-dash/actions';
 import type { EmpTask, EmpProfile, EmpRole, EmpDomain } from '@/lib/supabase/types';
 
 type TaskWithDomain   = EmpTask & { emp_domains: Pick<EmpDomain, 'name' | 'slug'> };
@@ -69,6 +70,11 @@ export default async function EmpDashMyDayPage() {
       .neq('author_id', user.id)
       .order('created_at', { ascending: false })
       .limit(3),
+    // Generates review_overdue notifications for tasks this viewer can
+    // verify that have sat in review 48h+ — was previously never called
+    // from anywhere. Scoped to the viewer's own domains inside the action,
+    // so cheap to run on every My Day load.
+    isReviewer ? checkOverdueReviewsAction() : Promise.resolve(null),
   ]);
 
   const awaitingReview: TaskWithProfile[] = isReviewer ? ((awaitingReviewResult.data ?? []) as TaskWithProfile[]) : [];

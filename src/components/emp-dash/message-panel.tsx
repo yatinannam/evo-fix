@@ -46,6 +46,13 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
   const [body, setBody] = useState('');
   const [isPending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Always holds the current activeChannelId, read inside async callbacks
+  // (realtime INSERT handler, send-message error handler) to detect when
+  // the user has switched channels since the async work started — without
+  // this, a slow callback for channel A can land after switching to B and
+  // mutate B's message list / error / draft with A's stale result.
+  const activeChannelIdRef = useRef(activeChannelId);
+  useEffect(() => { activeChannelIdRef.current = activeChannelId; }, [activeChannelId]);
 
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -72,6 +79,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
 
   useEffect(() => {
     if (!activeChannelId) return;
+    const channelId = activeChannelId;
     setLoading(true);
     setError(null);
     const supabase = getEmpDashBrowserClient();
@@ -79,10 +87,11 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
     supabase
       .from('emp_messages')
       .select('*, emp_profiles!sender_id(full_name)')
-      .eq('channel_id', activeChannelId)
+      .eq('channel_id', channelId)
       .order('created_at', { ascending: true })
       .limit(100)
       .then(({ data, error: err }) => {
+        if (channelId !== activeChannelIdRef.current) return; // switched away mid-fetch
         if (err) { setError(err.message); return; }
         setMessages((data ?? []) as MessageWithSender[]);
         setLoading(false);
@@ -90,12 +99,15 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
       });
 
     const channel = supabase
-      .channel(`messages-${activeChannelId}`)
+      .channel(`messages-${channelId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'emp_messages',
-        filter: `channel_id=eq.${activeChannelId}`,
+        filter: `channel_id=eq.${channelId}`,
       }, async payload => {
         const { data: sender } = await supabase.from('emp_profiles').select('full_name').eq('id', payload.new.sender_id).single();
+        // The await above can resolve after the user switches channels —
+        // bail before touching state that now belongs to a different channel.
+        if (channelId !== activeChannelIdRef.current) return;
         const msg = { ...payload.new, emp_profiles: sender ?? { full_name: 'Unknown' } } as MessageWithSender;
         setMessages(prev => {
           if (prev.find(m => m.id === msg.id)) return prev;
@@ -110,11 +122,12 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
 
   function sendMessage() {
     if (!body.trim() || !activeChannelId) return;
+    const channelId = activeChannelId;
     const draft = body;
     setBody('');
 
     const optimistic: MessageWithSender = {
-      id: `opt-${Date.now()}`, channel_id: activeChannelId, sender_id: currentUserId,
+      id: `opt-${Date.now()}`, channel_id: channelId, sender_id: currentUserId,
       body: draft, attachments: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       emp_profiles: { full_name: currentUserName },
     };
@@ -123,9 +136,14 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
     startTransition(async () => {
       const supabase = getEmpDashBrowserClient();
       const { error: sendErr } = await supabase.from('emp_messages').insert({
-        channel_id: activeChannelId, sender_id: currentUserId, body: draft,
+        channel_id: channelId, sender_id: currentUserId, body: draft,
       });
       if (sendErr) {
+        // If the user has switched channels since sending, the failed
+        // optimistic entry is already gone from view (the channel-switch
+        // effect replaced `messages` wholesale) — don't surface this
+        // channel's error/draft under whatever channel is now active.
+        if (channelId !== activeChannelIdRef.current) return;
         setError(sendErr.message);
         setMessages(prev => prev.filter(m => m.id !== optimistic.id));
         setBody(draft);
