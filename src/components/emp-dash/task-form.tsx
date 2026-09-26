@@ -123,7 +123,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
         <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', minHeight:0, flex:1 }}>
         {/* Scrollable body — the header and footer below stay pinned regardless
             of how tall the domain-specific fields make this form */}
-        <div style={{ padding:'24px', display:'flex', flexDirection:'column', gap:'20px', overflowY:'auto', minHeight:0, flex:1 }}>
+        <div style={{ padding:'24px', display:'flex', flexDirection:'column', gap:'20px', overflowY:'auto', overscrollBehavior:'contain', minHeight:0, flex:1 }}>
           {/* Title */}
           <div>
             <label htmlFor="task-title" style={labelStyle}>Title <span style={{ color:'#ef4444' }}>*</span></label>
@@ -139,7 +139,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           </div>
 
           {/* Domain + Priority */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+          <div className="ed-modal-field-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
             <div>
               <label htmlFor="task-domain" style={labelStyle}>Domain <span style={{ color:'#ef4444' }}>*</span></label>
               <Combobox
@@ -180,7 +180,7 @@ export function TaskForm({ domains, profiles, domainFieldMap, onClose }: TaskFor
           {/* Assignees */}
           <div>
             <label style={labelStyle}>Assignees</label>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', maxHeight:'144px', overflowY:'auto' }}>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', maxHeight:'144px', overflowY:'auto', overscrollBehavior:'contain' }}>
               {profiles.map(p => (
                 <button key={p.id} type="button" onClick={() => toggleAssignee(p.id)}
                   style={{

@@ -163,7 +163,7 @@ export default async function TaskDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'24px' }}>
+      <div className="ed-task-detail-grid" style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'24px' }}>
         {/* Left — details */}
         <div style={{ display:'flex', flexDirection:'column', gap:'20px' }}>
           {/* Assignees */}

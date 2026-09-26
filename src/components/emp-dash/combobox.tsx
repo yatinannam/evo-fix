@@ -77,7 +77,14 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
       if (popupRef.current?.contains(target)) return;
       close();
     }
-    function onScrollOrResize() { close(); }
+    // Only a real page/ancestor scroll invalidates the popup's fixed-position
+    // coords — scrolling inside the popup's own listbox fires a (non-bubbling)
+    // 'scroll' event that this capture-phase listener still sees, so it must
+    // be excluded or the popup closes itself the instant its list is scrolled.
+    function onScrollOrResize(e: Event) {
+      if (popupRef.current?.contains(e.target as Node)) return;
+      close();
+    }
     document.addEventListener('mousedown', onPointerDown);
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
@@ -177,7 +184,7 @@ export function Combobox({ options, value, onChange, placeholder, emptyOptionLab
               }}
             />
           </div>
-          <div role="listbox" id={listboxId} style={{ maxHeight:'220px', overflowY:'auto' }}>
+          <div role="listbox" id={listboxId} style={{ maxHeight:'220px', overflowY:'auto', overscrollBehavior:'contain' }}>
             {!hideEmptyOption && (
               <button
                 type="button"

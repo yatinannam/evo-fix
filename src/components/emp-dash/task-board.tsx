@@ -280,7 +280,7 @@ function CalendarView({ tasks }: { tasks: TaskWithRelations[] }) {
   }
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:'8px' }}>
+    <div className="ed-calendar-grid" style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:'8px' }}>
       {days.map(day => {
         const dayTasks = tasksForDay(day);
         const isToday = day.toDateString() === today.toDateString();

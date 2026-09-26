@@ -120,7 +120,14 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
       if (panelRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function onScrollOrResize() { setOpen(false); }
+    // Only a real page/ancestor scroll invalidates the panel's fixed-position
+    // coords — scrolling inside its own notification list fires a 'scroll'
+    // event this capture-phase listener still sees, so it must be excluded
+    // or the panel closes itself the instant its list is scrolled.
+    function onScrollOrResize(e: Event) {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    }
     function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); } }
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -249,7 +256,7 @@ export function NotificationBell({ initialNotifications, currentUserId }: Notifi
           </div>
 
           {/* List */}
-          <div style={{ overflowY:'auto', maxHeight:'400px' }}>
+          <div style={{ overflowY:'auto', maxHeight:'400px', overscrollBehavior:'contain' }}>
             {notifications.length === 0 ? (
               <div style={{ padding:'40px 20px', textAlign:'center' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'block', margin:'0 auto 8px' }}>

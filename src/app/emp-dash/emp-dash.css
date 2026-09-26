@@ -168,4 +168,25 @@
   [data-empdash] .ed-main-content > div {
     padding: 16px 16px 40px !important;
   }
+
+  /* Task detail's 2fr/1fr side-by-side layout has no room on a phone —
+     stack details above the status/assignee panel instead of crushing both. */
+  [data-empdash] .ed-task-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* A 7-column week grid is unusable at phone width — collapse to a
+     horizontally-scrolling strip, matching the Kanban board's own fix. */
+  [data-empdash] .ed-calendar-grid {
+    grid-template-columns: none !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(120px, 1fr);
+    overflow-x: auto;
+  }
+
+  /* Side-by-side form fields inside a modal get cramped once the modal
+     itself narrows to fit a phone screen. */
+  [data-empdash] .ed-modal-field-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

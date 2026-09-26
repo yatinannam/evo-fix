@@ -79,7 +79,7 @@ export function TaskThread({ taskId, initialComments, currentUserId, currentUser
       <h3 style={{ fontSize:'13px', fontWeight:700, color:'#374151', margin:0 }}>Thread</h3>
 
       {/* Comments list */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'12px', maxHeight:'300px', overflowY:'auto', paddingRight:'4px' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'12px', maxHeight:'300px', overflowY:'auto', overscrollBehavior:'contain', paddingRight:'4px' }}>
         {comments.length === 0 && (
           <p style={{ fontSize:'14px', color:'#9ca3af', textAlign:'center', padding:'20px 0' }}>No comments yet. Start the discussion.</p>
         )}

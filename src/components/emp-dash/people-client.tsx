@@ -352,7 +352,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
               </button>
             </div>
             <form onSubmit={handleCreate} style={{ display:'flex', flexDirection:'column', minHeight:0, flex:1 }}>
-            <div style={{ padding:'20px 28px 28px', display:'flex', flexDirection:'column', gap:'16px', overflowY:'auto', minHeight:0, flex:1 }}>
+            <div style={{ padding:'20px 28px 28px', display:'flex', flexDirection:'column', gap:'16px', overflowY:'auto', overscrollBehavior:'contain', minHeight:0, flex:1 }}>
               <div>
                 <label htmlFor="invite-name" style={{ display:'block', fontSize:'13px', fontWeight:600, color:'#374151', marginBottom:'6px' }}>Full Name</label>
                 <input id="invite-name" name="full_name" required style={inputStyle} />
@@ -482,7 +482,7 @@ export function PeopleClient({ profiles, allUserDomains, allRoles, allDomains, i
               </button>
             </div>
 
-            <div style={{ padding:'24px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'20px', flex:1, minHeight:0 }}>
+            <div style={{ padding:'24px', overflowY:'auto', overscrollBehavior:'contain', display:'flex', flexDirection:'column', gap:'20px', flex:1, minHeight:0 }}>
               {/* Position */}
               <div>
                 <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>

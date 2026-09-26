@@ -185,7 +185,7 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
             </div>
 
             <form onSubmit={handleCreate} style={{ display:'flex', flexDirection:'column', minHeight:0, flex:1 }}>
-            <div style={{ padding:'20px 28px 28px', display:'flex', flexDirection:'column', gap:'16px', overflowY:'auto', minHeight:0, flex:1 }}>
+            <div style={{ padding:'20px 28px 28px', display:'flex', flexDirection:'column', gap:'16px', overflowY:'auto', overscrollBehavior:'contain', minHeight:0, flex:1 }}>
               <div>
                 <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                   Note
@@ -201,7 +201,7 @@ export function NotesClient({ notes, profiles, tasks, currentUserId }: NotesClie
                 />
               </div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+              <div className="ed-modal-field-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
                 <div>
                   <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                     About Person (optional)

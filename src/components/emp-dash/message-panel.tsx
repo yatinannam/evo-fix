@@ -329,7 +329,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
               </button>
             </div>
 
-            <div style={{ padding:'24px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'16px', flex:1, minHeight:0 }}>
+            <div style={{ padding:'24px', overflowY:'auto', overscrollBehavior:'contain', display:'flex', flexDirection:'column', gap:'16px', flex:1, minHeight:0 }}>
               <div>
                 <label htmlFor="channel-name" style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                   Channel Name
@@ -352,7 +352,7 @@ export function MessagePanel({ channels, initialChannelId, currentUserId, curren
                 <label style={{ display:'block', fontSize:'12px', fontWeight:600, color:'#374151', marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.05em' }}>
                   Members
                 </label>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', maxHeight:'160px', overflowY:'auto' }}>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', maxHeight:'160px', overflowY:'auto', overscrollBehavior:'contain' }}>
                   {allProfiles.map(p => (
                     <button key={p.id} type="button" onClick={() => toggleMember(p.id)}
                       style={{
