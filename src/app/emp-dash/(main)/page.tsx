@@ -121,7 +121,11 @@ export default async function EmpDashMyDayPage() {
       <Section
         title="My Active Tasks"
         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
-        action={<Link href="/emp-dash/tasks" style={{ fontSize:'13px', color:'#f97316', fontWeight:600, textDecoration:'none' }}>View all →</Link>}
+        action={
+          <Link href="/emp-dash/tasks" style={{ display:'inline-flex', alignItems:'center', gap:'2px', fontSize:'13px', color:'#f97316', fontWeight:600, textDecoration:'none' }}>
+            View all <ChevronRightIcon />
+          </Link>
+        }
       >
         {myTasksErr && <ErrorBox>Failed to load tasks. Please refresh.</ErrorBox>}
         {!myTasksErr && myTasksList.length === 0 && (
@@ -197,7 +201,9 @@ export default async function EmpDashMyDayPage() {
                         Overdue
                       </span>
                     )}
-                    <span style={{ fontSize:'11px', fontWeight:700, color:'#d97706', background:'#fffbeb', padding:'3px 10px', borderRadius:'8px', border:'1px solid rgba(245,158,11,0.2)' }}>Review →</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:'2px', fontSize:'11px', fontWeight:700, color:'#d97706', background:'#fffbeb', padding:'3px 8px 3px 10px', borderRadius:'8px', border:'1px solid rgba(245,158,11,0.2)' }}>
+                      Review <ChevronRightIcon size={11} />
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -245,6 +251,12 @@ export default async function EmpDashMyDayPage() {
 function WarningIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  );
+}
+
+function ChevronRightIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
   );
 }
 
